@@ -37,8 +37,6 @@ export interface ExecutionDeps {
   minActionGapMs?: number;
   /** Decisions pause while this is false (L3 book resyncing). */
   bookLive?: () => boolean;
-  /** Optional hook to decorate fills (fairness checks for live). */
-  onFill?: (fill: Fill, exec: Execution) => Record<string, unknown> | undefined;
 }
 
 export interface ExecutionEvent {
@@ -80,6 +78,8 @@ export class Execution extends EventEmitter<ExecutionEvents> {
   private rawFills: Fill[] = [];
   events: ExecutionEvent[] = [];
   report: ExecutionReport | null = null;
+  /** What the exchange says about our orders (live), e.g. Builder code and fee. */
+  audit: unknown = null;
   error: string | null = null;
   endedAt: number | null = null;
   private lastRepriceAt: number | null = null;
@@ -124,6 +124,7 @@ export class Execution extends EventEmitter<ExecutionEvents> {
 
     this.d.venue.on('fill', (f) => this.onFill(f));
     this.d.venue.on('error', (e) => void this.fail(e.message));
+    this.d.venue.on('update', () => this.emit('change', this));
     this.log('info', `Started: ${this.params.side} ${this.params.size} BTC within ${this.params.deadlineSec} s, limit ${this.guard} (arrival mid ${mid.toDecimalPlaces(2)})`);
     this.timer = setInterval(() => void this.step(), this.d.tickMs ?? 250);
     void this.step();
@@ -148,7 +149,7 @@ export class Execution extends EventEmitter<ExecutionEvents> {
       fee: f.fee.toString(),
       tradeId: f.tradeId,
     };
-    rec.checks = this.d.onFill?.(f, this);
+    rec.checks = f.checks; // same object; the venue fills it in later and fires 'update'
     this.fills.push(rec);
     this.log('fill', `Filled ${f.size} BTC at ${f.price} as ${f.isMaker ? 'maker' : 'taker'} (${this.filled}/${this.params.size})`);
     this.emit('fill', this, rec);
@@ -310,6 +311,13 @@ export class Execution extends EventEmitter<ExecutionEvents> {
       arrivalOpposite: levels,
     });
     this.log(state === 'failed' ? 'error' : 'info', reason);
+    if (this.d.venue.audit) {
+      try {
+        this.audit = await Promise.race([this.d.venue.audit(), new Promise((r) => setTimeout(() => r({ error: 'timed out' }), 8000))]);
+      } catch (err) {
+        this.audit = { error: (err as Error).message };
+      }
+    }
     this.d.venue.close();
     this.emit('done', this);
   }
@@ -347,6 +355,7 @@ export class Execution extends EventEmitter<ExecutionEvents> {
       events: this.events.slice(-100),
       error: this.error,
       report: this.report,
+      audit: this.audit,
     };
   }
 }

@@ -26,6 +26,8 @@ export interface Fill {
   fee: Decimal;
   tradeId?: number;
   ts: number;
+  /** Fairness checks (live only); filled in shortly after the fill, then `update` fires. */
+  checks?: Record<string, unknown>;
 }
 
 export interface QueuePosition {
@@ -63,6 +65,8 @@ export interface VenueEvents {
   /** Order finished: fully filled, cancelled or rejected by the venue. */
   orderDone: [WorkingOrder, 'filled' | 'canceled' | 'rejected'];
   error: [Error];
+  /** Something shown in the execution view changed (e.g. fairness checks arrived). */
+  update: [];
 }
 
 /** What an Execution needs from a venue. Paper and live both implement it. */
@@ -75,5 +79,7 @@ export interface Venue extends EventEmitter<VenueEvents> {
   /** Market order for the remainder. Resolves after fills are known. */
   cross(p: CrossParams): Promise<Fill[]>;
   queuePosition(order: WorkingOrder): QueuePosition;
+  /** Optional proof from the exchange after the run (live: each order as Strike reports it). */
+  audit?(): Promise<unknown>;
   close(): void;
 }

@@ -5,6 +5,7 @@ import pino from 'pino';
 import { Store } from './store/Store.js';
 import { ExecutionManager } from './engine/ExecutionManager.js';
 import { Accounts } from './users/Accounts.js';
+import { LiveVenue } from './engine/LiveVenue.js';
 
 async function main() {
   const config = loadConfig();
@@ -13,6 +14,23 @@ async function main() {
   const store = new Store(config.dataDir);
   const manager = new ExecutionManager(config, feeds, store, logger.child({ mod: 'exec' }));
   const accounts = new Accounts(config, logger.child({ mod: 'accounts' }));
+  manager.liveFactory = {
+    async create(owner, executionId) {
+      const rest = accounts.restFor(owner);
+      const stream = accounts.streamFor(owner);
+      // The stream must be up before the first order, or we'd miss its confirmation.
+      await stream.waitReady(10_000);
+      return new LiveVenue({
+        symbol: config.symbol,
+        rest,
+        stream,
+        l3: feeds.l3,
+        tape: feeds.tape,
+        argusFeeBps: config.argusFeeBps,
+        logger: logger.child({ mod: 'live', exec: executionId }),
+      });
+    },
+  };
   const app = await buildApp(config, { feeds, manager, store, accounts });
 
   if (!config.liveConfigured) app.log.warn(config.liveNotConfiguredReason);
