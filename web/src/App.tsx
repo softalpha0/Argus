@@ -1,13 +1,56 @@
 import { useEffect, useState } from 'react';
-import { WalletProvider } from './lib/wallet';
-import Connect from './pages/Connect';
+import { WalletProvider, shortAddress, useWallet } from './lib/wallet';
+import { LiveProvider, useLive } from './lib/live';
+import { useRoute } from './lib/router';
+import Trade from './pages/Trade';
+import Execution from './pages/Execution';
+import Report from './pages/Report';
+import Stats from './pages/Stats';
 
 interface ServerConfig {
   env: string;
   symbol: string;
   argusFeeBps: number;
+  takerFee: string;
+  makerFee: string;
   liveConfigured: boolean;
   liveNotConfiguredReason: string | null;
+}
+
+function Header({ env }: { env: string }) {
+  const { connected, market } = useLive();
+  const { me } = useWallet();
+  const route = useRoute();
+  const link = (href: string, label: string, on: boolean) => (
+    <a href={href} className={`rounded-md px-3 py-1.5 text-sm ${on ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400 hover:text-neutral-100'}`}>{label}</a>
+  );
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-800 pb-4">
+      <a href="#/" className="flex items-baseline gap-2">
+        <span className="text-lg font-semibold tracking-tight">Argus</span>
+        <span className="hidden text-sm text-neutral-500 sm:inline">Get paid to trade on Strike.</span>
+      </a>
+      <nav className="flex items-center gap-1">
+        {link('#/', 'Trade', route.page === 'trade')}
+        {link('#/stats', 'Stats', route.page === 'stats')}
+      </nav>
+      <div className="flex items-center gap-3 font-mono text-xs text-neutral-400">
+        <span className="flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${connected && market?.live ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+          {env} {market?.live ? 'L3 live' : 'syncing'}
+        </span>
+        {me && <span className="rounded bg-neutral-800 px-2 py-0.5 text-neutral-200">{shortAddress(me.address)}</span>}
+      </div>
+    </header>
+  );
+}
+
+function Body({ config }: { config: ServerConfig }) {
+  const route = useRoute();
+  if (route.page === 'execution') return <Execution id={route.id} />;
+  if (route.page === 'report') return <Report id={route.id} />;
+  if (route.page === 'stats') return <Stats />;
+  return <Trade config={config} />;
 }
 
 export default function App() {
@@ -22,28 +65,16 @@ export default function App() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-semibold">Argus</h1>
-      <p className="mt-1 text-neutral-400">Get paid to trade on Strike.</p>
-      <section className="mt-6 rounded-lg border border-neutral-800 p-4 font-mono text-sm">
-        {error && <p className="text-red-400">Server not reachable: {error}</p>}
-        {!error && !config && <p className="text-neutral-500">Connecting…</p>}
-        {config && (
-          <dl className="grid grid-cols-2 gap-y-1">
-            <dt className="text-neutral-500">Network</dt><dd>{config.env}</dd>
-            <dt className="text-neutral-500">Market</dt><dd>{config.symbol}</dd>
-            <dt className="text-neutral-500">Argus fee</dt><dd>{config.argusFeeBps} bps</dd>
-            <dt className="text-neutral-500">Live mode</dt>
-            <dd>{config.liveConfigured ? 'ready' : config.liveNotConfiguredReason}</dd>
-          </dl>
-        )}
-      </section>
+    <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6">
+      {error && <p className="text-red-400">Server not reachable: {error}</p>}
+      {!error && !config && <p className="text-neutral-500">Connecting…</p>}
       {config && (
-        <div className="mt-4">
+        <LiveProvider>
           <WalletProvider>
-            <Connect liveConfigured={config.liveConfigured} reason={config.liveNotConfiguredReason} />
+            <Header env={config.env} />
+            <Body config={config} />
           </WalletProvider>
-        </div>
+        </LiveProvider>
       )}
     </main>
   );

@@ -146,8 +146,10 @@ Open `http://localhost:5173`. Paper mode works with no extra setup. Live mode ne
 | `GET /api/market` | Book with every order in queue order, spread, fill rates |
 | `POST /api/connect/start` | Starts Builder Connect, returns the message to sign |
 | `POST /api/connect/finish` | Verifies the signature and signs you in |
+| `POST /api/connect/logout` | Signs you out |
 | `GET /api/me` | Your connected wallet and account |
 | `POST /api/executions` | Starts a paper or live execution |
+| `GET /api/executions` | Running and recent executions you can see |
 | `GET /api/executions/:id` | Live state, queue position, fills |
 | `POST /api/executions/:id/cancel` | Stops and cancels |
 | `GET /api/reports/:id` | Full report with every step of the math |
