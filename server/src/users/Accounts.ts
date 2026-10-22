@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 import { generateApiWallet, StrikeRest, StrikeError, type ApiWalletKey, type WalletChain } from '../strike/rest.js';
@@ -44,8 +45,10 @@ export class Accounts {
   private streams = new Map<string, UserStream>();
 
   constructor(private readonly config: Config, private readonly logger: Logger) {
-    this.sessions = new Sessions(config.dataDir);
-    this.keys = config.masterKey ? new KeyStore(config.dataDir, config.masterKey) : null;
+    // Each network has its own Strike accounts and API wallets; keep them apart.
+    const dir = config.env === 'mainnet' ? config.dataDir : path.join(config.dataDir, config.env);
+    this.sessions = new Sessions(dir);
+    this.keys = config.masterKey ? new KeyStore(dir, config.masterKey) : null;
     this.rest = new StrikeRest({ baseUrl: config.hosts.rest });
   }
 

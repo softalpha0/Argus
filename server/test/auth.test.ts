@@ -113,3 +113,17 @@ describe('wallet address checks', async () => {
     expect(checkAddress('solana', main, 'mainnet')).toMatch(/Solana/);
   });
 });
+
+describe('deposit amounts', async () => {
+  const { toSmallestUnit } = await import('../src/api/funds.js');
+  it('converts to the smallest unit exactly', () => {
+    expect(toSmallestUnit('3000', 6)).toBe('3000000000');
+    expect(toSmallestUnit('0.5', 9)).toBe('500000000');
+    expect(toSmallestUnit('12.345678', 6)).toBe('12345678');
+  });
+  it('rejects bad amounts', () => {
+    expect(() => toSmallestUnit('0', 6)).toThrow(/greater than 0/);
+    expect(() => toSmallestUnit('abc', 6)).toThrow(/number/);
+    expect(() => toSmallestUnit('1.0000001', 6)).toThrow(/decimal places/);
+  });
+});

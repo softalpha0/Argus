@@ -6,6 +6,9 @@ import Trade from './pages/Trade';
 import Execution from './pages/Execution';
 import Report from './pages/Report';
 import Stats from './pages/Stats';
+import WalletModal from './components/WalletModal';
+import FundsModal from './components/FundsModal';
+import { useRef, useState as useLocalState } from 'react';
 
 interface ServerConfig {
   env: string;
@@ -19,8 +22,16 @@ interface ServerConfig {
 
 function Header({ env }: { env: string }) {
   const { connected, market } = useLive();
-  const { me } = useWallet();
+  const { me, open, logout } = useWallet();
   const route = useRoute();
+  const [menu, setMenu] = useLocalState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const close = (e: MouseEvent) => menuRef.current && !menuRef.current.contains(e.target as Node) && setMenu(false);
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, [setMenu]);
+  const usdBal = me?.balances?.find((b) => /USD/.test(b.asset))?.availableBalance;
   const link = (href: string, label: string, on: boolean) => (
     <a href={href} className={`rounded-md px-3 py-1.5 text-sm ${on ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400 hover:text-neutral-100'}`}>{label}</a>
   );
@@ -39,10 +50,35 @@ function Header({ env }: { env: string }) {
           <span className={`h-2 w-2 rounded-full ${connected && market?.live ? 'bg-emerald-400' : 'bg-amber-400'}`} />
           {env} {market?.live ? 'L3 live' : 'syncing'}
         </span>
-        {me && <span className="rounded bg-neutral-800 px-2 py-0.5 text-neutral-200">{shortAddress(me.address)}</span>}
+        {me ? (
+          <div className="relative" ref={menuRef}>
+            <button onClick={() => setMenu(!menu)} className="flex items-center gap-2 rounded-md bg-neutral-800 px-2.5 py-1 text-neutral-100 hover:bg-neutral-700" aria-expanded={menu}>
+              <span>{shortAddress(me.address)}</span>
+              {usdBal !== undefined && <span className="text-neutral-400">${Number(usdBal).toFixed(2)}</span>}
+              <span aria-hidden>▾</span>
+            </button>
+            {menu && (
+              <div className="absolute right-0 z-40 mt-2 grid w-48 gap-1 rounded-lg border border-neutral-800 bg-neutral-950 p-1 font-sans text-sm shadow-xl">
+                <span className="px-3 py-1.5 text-xs text-neutral-500">{me.chain === 'cardano' ? 'Cardano' : 'Solana'} · {me.network}</span>
+                <button className="rounded px-3 py-1.5 text-left hover:bg-neutral-900" onClick={() => { setMenu(false); open('deposit'); }}>Deposit</button>
+                <button className="rounded px-3 py-1.5 text-left hover:bg-neutral-900" onClick={() => { setMenu(false); open('withdraw'); }}>Withdraw</button>
+                <button className="rounded px-3 py-1.5 text-left text-neutral-400 hover:bg-neutral-900" onClick={() => { setMenu(false); void logout(); }}>Disconnect</button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button onClick={() => open('connect')} className="rounded-md bg-emerald-500 px-3 py-1.5 font-sans text-sm font-medium text-neutral-950 hover:bg-emerald-400">Connect wallet</button>
+        )}
       </div>
     </header>
   );
+}
+
+function Modals({ env }: { env: string }) {
+  const { modal, open } = useWallet();
+  if (modal === 'connect') return <WalletModal network={env} onClose={() => open(null)} />;
+  if (modal === 'deposit' || modal === 'withdraw') return <FundsModal tab={modal} network={env} onClose={() => open(null)} />;
+  return null;
 }
 
 function Body({ config }: { config: ServerConfig }) {
@@ -73,6 +109,7 @@ export default function App() {
           <WalletProvider>
             <Header env={config.env} />
             <Body config={config} />
+            <Modals env={config.env} />
           </WalletProvider>
         </LiveProvider>
       )}

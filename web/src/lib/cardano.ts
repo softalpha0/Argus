@@ -7,6 +7,9 @@ interface Cip30Api {
   getUnusedAddresses(): Promise<string[]>;
   getChangeAddress(): Promise<string>;
   signData(addressHex: string, payloadHex: string): Promise<{ signature: string; key: string }>;
+  getUtxos(amount?: string, paginate?: unknown): Promise<string[] | null>;
+  signTx(txHex: string, partialSign?: boolean): Promise<string>;
+  submitTx(txHex: string): Promise<string>;
 }
 
 interface Cip30Wallet {
@@ -60,11 +63,35 @@ export function addressToBech32(hex: string): string {
 }
 
 export interface CardanoSession {
+  walletId: string;
   address: string;
   addressHex: string;
   networkId: number;
+  /** Sign a UTF-8 message (Builder Connect). Returns {coseSign1}:{coseKey}. */
   sign(message: string): Promise<string>;
+  /** Sign a payload that is already hex (Strike's withdrawal message). */
+  signHex(payloadHex: string): Promise<string>;
+  utxos(): Promise<string[]>;
+  /** Sign a transaction; returns the wallet's witness set (hex). */
+  signTx(txHex: string): Promise<string>;
+  submitTx(txHex: string): Promise<string>;
 }
+
+const STORE_KEY = 'argus.cardanoWallet';
+export const rememberCardanoWallet = (id: string) => {
+  try {
+    localStorage.setItem(STORE_KEY, id);
+  } catch {
+    /* storage unavailable */
+  }
+};
+export const rememberedCardanoWallet = (): string | null => {
+  try {
+    return localStorage.getItem(STORE_KEY);
+  } catch {
+    return null;
+  }
+};
 
 export async function connectCardano(walletId: string): Promise<CardanoSession> {
   const w = window.cardano?.[walletId] as Cip30Wallet | undefined;
@@ -76,7 +103,9 @@ export async function connectCardano(walletId: string): Promise<CardanoSession> 
   if (!addressHex) throw new Error('Your Cardano wallet did not share an address');
   // Some wallets return the address already in bech32.
   const address = addressHex.startsWith('addr') ? addressHex : addressToBech32(addressHex);
+  rememberCardanoWallet(walletId);
   return {
+    walletId,
     address,
     addressHex,
     networkId,
@@ -85,5 +114,14 @@ export async function connectCardano(walletId: string): Promise<CardanoSession> 
       const { signature, key } = await api.signData(addressHex, payload);
       return `${signature}:${key}`;
     },
+    async signHex(payloadHex: string) {
+      const { signature, key } = await api.signData(addressHex, payloadHex);
+      return `${signature}:${key}`;
+    },
+    async utxos() {
+      return (await api.getUtxos()) ?? [];
+    },
+    signTx: (txHex) => api.signTx(txHex, true),
+    submitTx: (txHex) => api.submitTx(txHex),
   };
 }

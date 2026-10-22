@@ -15,6 +15,7 @@ import { registerRoutes } from './api/routes.js';
 import { marketView, registerLive } from './api/live.js';
 import type { Accounts } from './users/Accounts.js';
 import { registerConnect, sessionOwner } from './api/connect.js';
+import { registerFunds } from './api/funds.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // Works from both src/ (tsx) and dist/ (built).
@@ -48,8 +49,11 @@ export async function buildApp(config: Config, opts: { logger?: boolean; feeds?:
   }));
 
   if (opts.feeds && opts.manager && opts.store) {
-    const ownerOf: (req: FastifyRequest) => string | null = opts.accounts ? sessionOwner(opts.accounts) : () => null;
-    if (opts.accounts) registerConnect(app, config, opts.accounts);
+    const ownerOf: (req: FastifyRequest) => string | null = opts.accounts ? sessionOwner(opts.accounts, config.env) : () => null;
+    if (opts.accounts) {
+      registerConnect(app, config, opts.accounts);
+      registerFunds(app, opts.accounts, ownerOf);
+    }
     const feeds = opts.feeds;
     app.get('/api/market', async () => ({ ...marketView(feeds, config.symbol), sync: { ...feeds.l3.stats }, tape: { connected: feeds.tape.connected, trades: feeds.tape.tradesSeen } }));
     registerRoutes(app, { config, feeds, manager: opts.manager, store: opts.store, ownerOf });

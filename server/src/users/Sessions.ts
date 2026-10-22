@@ -11,6 +11,8 @@ export interface Session {
 
 const TTL_MS = 7 * 24 * 60 * 60_000;
 export const SESSION_COOKIE = 'argus_session';
+/** Mainnet and testnet sign-ins are separate accounts, so they get separate cookies. */
+export const sessionCookie = (env: 'mainnet' | 'testnet') => (env === 'mainnet' ? SESSION_COOKIE : `${SESSION_COOKIE}_${env}`);
 
 /** Random session tokens; only their SHA-256 is kept, so the file alone can't sign anyone in. */
 export class Sessions {

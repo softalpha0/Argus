@@ -96,6 +96,7 @@ Each fill gets a ✓ or ✗ in your report.
 | L3 websocket + snapshot | Rebuilds the BTC-USD book order by order to find queue position and fill speed |
 | Trade stream | Measures fill rates and checks fills against the public tape |
 | Builder Connect | One-signature onboarding with a trade-only API wallet, from Phantom (Solana) or any CIP-30 Cardano wallet |
+| Builder deposit and withdraw | Fund and withdraw without leaving Argus; Cardano transactions are signed in the wallet and assembled without touching the transaction body |
 | Builder Codes (`X-Builder-Fee-Bps`) | Argus's fee on every order |
 | Orders API (`post_only`, replace, cancel, market with `slippage`) | Places and manages maker orders |
 | User websocket | Real fills, fees, rebates and maker flag for each order |
@@ -152,6 +153,8 @@ Strike's testnet takes Cardano test ADA. Get some from the [Cardano faucet](http
 | `POST /api/connect/finish` | Verifies the signature and signs you in |
 | `POST /api/connect/logout` | Signs you out |
 | `GET /api/me` | Your connected wallet and account |
+| `POST /api/funds/deposit/quote`, `/build`, `/confirm` | Deposit through Strike's Builder API (Cardano ADA in-app; Solana via Strike's app) |
+| `POST /api/funds/withdraw/quote`, `/confirm` | Withdraw to your own connected wallet, signed by that wallet |
 | `POST /api/executions` | Starts a paper or live execution |
 | `GET /api/executions` | Running and recent executions you can see |
 | `GET /api/executions/:id` | Live state, queue position, fills |
@@ -168,6 +171,8 @@ Strike's testnet takes Cardano test ADA. Get some from the [Cardano faucet](http
 - Stored keys are encrypted with AES-256-GCM.
 - Every order is post-only unless the deadline fallback runs.
 - You can stop any execution at any time, and revoke Argus's key in Strike's app.
+- Deposits and withdrawals use Strike's own quotes: Strike fixes the deposit address and sends withdrawals only to the wallet you connected. Every one needs your wallet's signature.
+- Mainnet and testnet sign-ins are kept separate (different keys, sessions and cookies).
 
 ---
 

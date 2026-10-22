@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-function getPhantom(): PhantomProvider | null {
+export function getPhantom(): PhantomProvider | null {
   const p = window.phantom?.solana ?? window.solana;
   return p?.isPhantom ? p : null;
 }
@@ -30,6 +30,8 @@ interface WalletState {
   error: string | null;
   hasPhantom: boolean;
   cardanoWallets: CardanoWalletInfo[];
+  modal: 'connect' | 'deposit' | 'withdraw' | null;
+  open(m: 'connect' | 'deposit' | 'withdraw' | null): void;
   /** 'phantom' for Solana, or a Cardano wallet id from cardanoWallets. */
   connect(wallet?: string): Promise<void>;
   logout(): Promise<void>;
@@ -43,6 +45,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modal, setModal] = useState<'connect' | 'deposit' | 'withdraw' | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -101,6 +104,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const err = e as { message?: string; info?: string; code?: number };
         const msg = err.message ?? err.info ?? String(e);
         setError(/reject|cancel|declin|denied/i.test(msg) || err.code === 2 || err.code === -3 ? 'You cancelled the signature request.' : msg);
+        throw e;
       } finally {
         setBusy(false);
       }
@@ -114,7 +118,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setMe(null);
   }, []);
 
-  return <Ctx.Provider value={{ me, loading, busy, error, hasPhantom: !!getPhantom(), cardanoWallets, connect, logout, refresh }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ me, loading, busy, error, hasPhantom: !!getPhantom(), cardanoWallets, modal, open: (m) => { setError(null); setModal(m); }, connect, logout, refresh }}>{children}</Ctx.Provider>;
 }
 
 export function useWallet(): WalletState {

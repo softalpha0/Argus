@@ -161,6 +161,31 @@ export class StrikeRest {
     return this.request<{ asset: string; walletBalance: string; availableBalance: string; unrealizedPnl: string; marginBalance: string }[]>('GET', '/v2/balances');
   }
 
+  // Funds (signed). The deposit address and withdrawal recipient are fixed by Strike, never by us.
+  depositQuote(b: { blockchain: WalletChain; asset_symbol: string; asset_amount: string }) {
+    return this.request<{ request_id: string; quote: Record<string, unknown>; deposit_address: string; confirmations_required: number }>('POST', '/v2/deposit/quote', b);
+  }
+
+  depositBuildTx(b: { request_id: string; user_address: string; utxos?: string[] }) {
+    return this.request<{ blockchain: string; unsigned_tx: unknown; format: string; expires_at?: number }>('POST', '/v2/deposit/build-tx', b);
+  }
+
+  depositConfirm(b: { request_id: string; tx_hash: string }) {
+    return this.request<{ request_id: string; status: string; tx_hash: string; message?: string }>('POST', '/v2/deposit', b);
+  }
+
+  withdrawQuote(b: { blockchain: WalletChain; usd_value: string; asset?: string }) {
+    return this.request<{ withdraw_id: string; fee: string; message_to_sign: string; tx_cbor?: string; validator_address?: string }>('POST', '/v2/withdraw/quote', b);
+  }
+
+  withdrawConfirm(b: { withdraw_id: string; wallet_signature: string; signed_tx_cbor?: string }) {
+    return this.request<{ request_id: string; status: string }>('POST', '/v2/withdraw', b);
+  }
+
+  withdrawLimits(chain: WalletChain, asset: string) {
+    return this.request<Record<string, unknown>>('GET', `/v2/withdraw/limits?chain=${chain}&asset=${encodeURIComponent(asset)}`);
+  }
+
   getPositions() {
     return this.request<unknown>('GET', '/v2/positions');
   }

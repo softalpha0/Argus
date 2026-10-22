@@ -1,13 +1,15 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Config } from '../config.js';
 import { Accounts, ConnectError } from '../users/Accounts.js';
-import { SESSION_COOKIE, sessionTtlSec } from '../users/Sessions.js';
+import { sessionCookie, sessionTtlSec } from '../users/Sessions.js';
 
-export function sessionOwner(accounts: Accounts) {
-  return (req: FastifyRequest): string | null => accounts.sessions.get(req.cookies?.[SESSION_COOKIE])?.address ?? null;
+export function sessionOwner(accounts: Accounts, env: 'mainnet' | 'testnet') {
+  const name = sessionCookie(env);
+  return (req: FastifyRequest): string | null => accounts.sessions.get(req.cookies?.[name])?.address ?? null;
 }
 
 export function registerConnect(app: FastifyInstance, config: Config, accounts: Accounts): void {
+  const SESSION_COOKIE = sessionCookie(config.env);
   const fail = (reply: FastifyReply, err: unknown) => {
     if (err instanceof ConnectError) return reply.code(err.status).send({ error: err.message });
     throw err;
