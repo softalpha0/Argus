@@ -60,7 +60,7 @@ export default function Report({ id }: { id: string }) {
         </p>
       </header>
 
-      <section className="grid gap-3 rounded-lg border border-neutral-800 p-5 sm:grid-cols-3">
+      <section className="grid gap-3 rounded-lg border border-ink-700 p-5 sm:grid-cols-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-neutral-500">Compared with a market order at the start</p>
           <p className={`mt-1 font-mono text-3xl tabular-nums ${saved === null ? 'text-neutral-400' : saved >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -92,7 +92,7 @@ export default function Report({ id }: { id: string }) {
         {r.fills.length === 0 ? (
           <p className="text-sm text-neutral-400">No fills.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-neutral-800">
+          <div className="overflow-x-auto rounded-lg border border-ink-700">
             <table className="w-full min-w-[36rem] text-sm">
               <thead className="text-left text-[11px] uppercase tracking-wider text-neutral-500">
                 <tr>
@@ -106,7 +106,7 @@ export default function Report({ id }: { id: string }) {
               </thead>
               <tbody className="font-mono tabular-nums">
                 {r.fills.map((f, i) => (
-                  <tr key={i} className="border-t border-neutral-800">
+                  <tr key={i} className="border-t border-ink-700">
                     <td className="px-3 py-2 text-neutral-400">{time(f.ts)}</td>
                     <td className="px-3 py-2">{f.size}</td>
                     <td className="px-3 py-2">{usd(f.price, 0)}</td>
@@ -139,14 +139,14 @@ export default function Report({ id }: { id: string }) {
       {live && r.audit?.orders && r.audit.orders.length > 0 && (
         <section className="grid gap-2">
           <h2 className="text-sm uppercase tracking-wider text-neutral-500">Orders as Strike reports them</h2>
-          <div className="overflow-x-auto rounded-lg border border-neutral-800">
+          <div className="overflow-x-auto rounded-lg border border-ink-700">
             <table className="w-full min-w-[30rem] font-mono text-xs">
               <thead className="text-left text-[11px] uppercase tracking-wider text-neutral-500">
                 <tr><th className="px-3 py-2 font-normal">Order ID</th><th className="px-3 py-2 font-normal">Status</th><th className="px-3 py-2 font-normal">Builder</th></tr>
               </thead>
               <tbody>
                 {r.audit.orders.map((o) => (
-                  <tr key={o.clientOrderId} className="border-t border-neutral-800">
+                  <tr key={o.clientOrderId} className="border-t border-ink-700">
                     <td className="px-3 py-2">{o.id ?? o.clientOrderId}</td>
                     <td className="px-3 py-2">{o.status ?? o.error}</td>
                     <td className="px-3 py-2">{o.builder ? `${o.builder.Code} · ${o.builder.FeeBps} bps` : '—'}</td>
@@ -158,7 +158,7 @@ export default function Report({ id }: { id: string }) {
         </section>
       )}
 
-      <details className="rounded-lg border border-neutral-800 p-3 text-sm">
+      <details className="rounded-lg border border-ink-700 p-3 text-sm">
         <summary className="cursor-pointer text-neutral-400">Decision log ({r.events.length})</summary>
         <ol className="mt-2 grid gap-1">
           {r.events.map((e, i) => (

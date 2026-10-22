@@ -73,8 +73,8 @@ export default function Trade({ config }: Props) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
       <div className="grid min-w-0 content-start gap-6">
-        <form onSubmit={submit} className="grid gap-4 rounded-lg border border-neutral-800 p-4">
-          <div className="flex gap-1 rounded-lg bg-neutral-900 p-1" role="group" aria-label="Mode">
+        <form onSubmit={submit} className="grid gap-4 rounded-lg border border-ink-700 p-4">
+          <div className="flex gap-1 rounded-lg bg-ink-800 p-1" role="group" aria-label="Mode">
             <button type="button" className={seg(mode === 'paper')} onClick={() => setMode('paper')}>Paper</button>
             <button type="button" className={seg(mode === 'live')} onClick={() => setMode('live')}>Live</button>
           </div>
@@ -87,14 +87,14 @@ export default function Trade({ config }: Props) {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1">
               <span className="text-xs uppercase tracking-wider text-neutral-500">Side</span>
-              <div className="flex gap-1 rounded-lg bg-neutral-900 p-1">
-                <button type="button" className={`${seg(side === 'buy')} ${side === 'buy' ? '!bg-emerald-500 !text-neutral-950' : ''}`} onClick={() => setSide('buy')}>Buy</button>
+              <div className="flex gap-1 rounded-lg bg-ink-800 p-1">
+                <button type="button" className={`${seg(side === 'buy')} ${side === 'buy' ? '!bg-maker !text-neutral-950' : ''}`} onClick={() => setSide('buy')}>Buy</button>
                 <button type="button" className={`${seg(side === 'sell')} ${side === 'sell' ? '!bg-rose-500 !text-neutral-950' : ''}`} onClick={() => setSide('sell')}>Sell</button>
               </div>
             </div>
             <label className="grid gap-1" htmlFor="size">
               <span className="text-xs uppercase tracking-wider text-neutral-500">Size (BTC)</span>
-              <input id="size" inputMode="decimal" value={size} onChange={(e) => setSize(e.target.value.trim())} className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono tabular-nums" />
+              <input id="size" inputMode="decimal" value={size} onChange={(e) => setSize(e.target.value.trim())} className="rounded-md border border-ink-600 bg-ink-800 px-3 py-2 font-mono tabular-nums" />
               <span className={`text-xs ${tooSmall ? 'text-amber-400' : 'text-neutral-500'}`}>
                 {usdEstimate !== null ? `≈ ${usd(usdEstimate, 2)}` : '—'}
                 {tooSmall ? ` · Strike's minimum is $${minNotional}` : ''}
@@ -104,7 +104,7 @@ export default function Trade({ config }: Props) {
 
           <div className="grid gap-1">
             <span className="text-xs uppercase tracking-wider text-neutral-500">Finish within</span>
-            <div className="flex gap-1 rounded-lg bg-neutral-900 p-1">
+            <div className="flex gap-1 rounded-lg bg-ink-800 p-1">
               {DEADLINES.map((d) => (
                 <button key={d.sec} type="button" className={seg(deadlineSec === d.sec)} onClick={() => setDeadlineSec(d.sec)}>{d.label}</button>
               ))}
@@ -115,14 +115,14 @@ export default function Trade({ config }: Props) {
             <label className="grid min-w-0 gap-1" htmlFor="slip">
               <span className="text-xs uppercase tracking-wider text-neutral-500">Max price move</span>
               <div className="flex items-center gap-2">
-                <input id="slip" type="number" min={1} max={500} value={maxSlippageBps} onChange={(e) => setMaxSlippageBps(Number(e.target.value))} className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono" />
+                <input id="slip" type="number" min={1} max={500} value={maxSlippageBps} onChange={(e) => setMaxSlippageBps(Number(e.target.value))} className="w-full rounded-md border border-ink-600 bg-ink-800 px-3 py-2 font-mono" />
                 <span className="text-sm text-neutral-500">bps</span>
               </div>
               <span className="text-xs text-neutral-500">{(maxSlippageBps / 100).toFixed(2)}% from the price now</span>
             </label>
             <label className="grid min-w-0 gap-1" htmlFor="preset">
               <span className="text-xs uppercase tracking-wider text-neutral-500">Style</span>
-              <select id="preset" value={preset} onChange={(e) => setPreset(e.target.value)} className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
+              <select id="preset" value={preset} onChange={(e) => setPreset(e.target.value)} className="w-full min-w-0 rounded-md border border-ink-600 bg-ink-800 px-3 py-2">
                 <option value="patient">Patient (wait in line)</option>
                 <option value="balanced">Balanced</option>
                 <option value="fast">Fast (jump the line sooner)</option>
@@ -130,14 +130,14 @@ export default function Trade({ config }: Props) {
             </label>
             <label className="grid min-w-0 gap-1" htmlFor="fallback">
               <span className="text-xs uppercase tracking-wider text-neutral-500">If time runs out</span>
-              <select id="fallback" value={fallback} onChange={(e) => setFallback(e.target.value)} className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
+              <select id="fallback" value={fallback} onChange={(e) => setFallback(e.target.value)} className="w-full min-w-0 rounded-md border border-ink-600 bg-ink-800 px-3 py-2">
                 <option value="market">Finish with a market order</option>
                 <option value="cancel">Cancel the rest</option>
               </select>
             </label>
           </div>
 
-          <div className="rounded-md bg-neutral-900 p-3 text-sm text-neutral-300">
+          <div className="rounded-md bg-ink-800 p-3 text-sm text-neutral-300">
             Market orders pay <b className="font-mono">{takerPct}%</b>. Maker orders earn <b className="font-mono">{makerPct}%</b> back. Argus charges <b className="font-mono">{(config.argusFeeBps / 100).toFixed(2)}%</b>.
             {usdEstimate ? (
               <span className="mt-1 block font-mono text-xs text-neutral-400">
@@ -148,7 +148,7 @@ export default function Trade({ config }: Props) {
 
           {liveBlocked && <p className="text-sm text-amber-400">{!config.liveConfigured ? config.liveNotConfiguredReason : 'Connect your wallet below to trade live.'}</p>}
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <button type="submit" disabled={busy || liveBlocked || !market?.live} className={`rounded-md px-4 py-3 font-medium text-neutral-950 disabled:opacity-40 ${side === 'buy' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-rose-500 hover:bg-rose-400'}`}>
+          <button type="submit" disabled={busy || liveBlocked || !market?.live} className={`rounded-md px-4 py-3 font-medium text-neutral-950 disabled:opacity-40 ${side === 'buy' ? 'bg-maker hover:bg-[#4ce3ae]' : 'bg-rose-500 hover:bg-rose-400'}`}>
             {busy ? 'Starting…' : `${mode === 'live' ? 'Start live' : 'Start paper'} ${side} of ${size || '0'} BTC`}
           </button>
           {!market?.live && <p className="text-xs text-neutral-500">Waiting for the order book to sync…</p>}
@@ -159,10 +159,10 @@ export default function Trade({ config }: Props) {
         {recent && (recent.running.length > 0 || recent.recent.length > 0) && (
           <section className="grid gap-2">
             <h2 className="text-sm uppercase tracking-wider text-neutral-500">Recent runs</h2>
-            <ul className="divide-y divide-neutral-800 rounded-lg border border-neutral-800 text-sm">
+            <ul className="divide-y divide-ink-700 rounded-lg border border-ink-700 text-sm">
               {[...recent.running.map((e) => ({ id: e.id, mode: e.mode, side: e.side, size: e.size, state: e.state, createdAt: e.createdAt, savings: null as string | null })), ...recent.recent].slice(0, 10).map((r) => (
                 <li key={r.id}>
-                  <a href={r.state === 'working' ? `#/x/${r.id}` : `#/r/${r.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 hover:bg-neutral-900">
+                  <a href={r.state === 'working' ? `#/x/${r.id}` : `#/r/${r.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 hover:bg-ink-800">
                     <span className="font-mono text-xs text-neutral-500">{time(r.createdAt)}</span>
                     <span className={r.side === 'buy' ? 'text-emerald-400' : 'text-rose-400'}>{r.side} {r.size}</span>
                     <span className="rounded bg-neutral-800 px-1.5 text-xs">{r.mode}</span>

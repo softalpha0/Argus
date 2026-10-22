@@ -1,0 +1,33 @@
+# One Render web service: the server serves the API, the live socket and the built web app.
+services:
+  - type: web
+    name: argus
+    runtime: node
+    plan: starter            # always on; the free plan sleeps and stops running executions
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: argus-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: STRIKE_ENV
+        value: mainnet
+      - key: SYMBOL
+        value: BTC-USD
+      - key: ARGUS_FEE_BPS
+        value: "2"
+      - key: BUILDER_MAX_FEE_BPS
+        value: "10"
+      - key: BUILDER_CODE
+        sync: false          # set in the Render dashboard, e.g. argus
+      - key: ARGUS_MASTER_KEY
+        sync: false          # 64 hex chars; generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

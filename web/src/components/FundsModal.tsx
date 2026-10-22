@@ -146,7 +146,7 @@ export default function FundsModal({ tab: initial, network, onClose }: Props) {
 
   return (
     <Modal title="Funds" onClose={onClose}>
-      <div className="flex gap-1 rounded-lg bg-neutral-900 p-1">
+      <div className="flex gap-1 rounded-lg bg-ink-800 p-1">
         <button className={seg(tab === 'deposit')} onClick={() => setTab('deposit')}>Deposit</button>
         <button className={seg(tab === 'withdraw')} onClick={() => setTab('withdraw')}>Withdraw</button>
       </div>
@@ -162,18 +162,18 @@ export default function FundsModal({ tab: initial, network, onClose }: Props) {
         <div className="grid gap-3">
           <label className="grid gap-1" htmlFor="dep-amt">
             <span className="text-xs uppercase tracking-wider text-neutral-500">Amount ({asset || 'ADA'})</span>
-            <input id="dep-amt" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value.trim()); setDq(null); }} className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono" placeholder="1000" />
+            <input id="dep-amt" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value.trim()); setDq(null); }} className="rounded-md border border-ink-600 bg-ink-800 px-3 py-2 font-mono" placeholder="1000" />
             <span className="text-xs text-neutral-500">Strike's minimum deposit is $5. Keep a few ADA in your wallet for the network fee.</span>
           </label>
           {!dq ? (
             <button onClick={quoteDeposit} disabled={!!busy || !amount} className="rounded-md bg-neutral-100 px-4 py-2 font-medium text-neutral-950 disabled:opacity-40">Get quote</button>
           ) : (
-            <div className="grid gap-2 rounded-md bg-neutral-900 p-3 text-sm">
+            <div className="grid gap-2 rounded-md bg-ink-800 p-3 text-sm">
               <div className="flex justify-between"><span className="text-neutral-400">You deposit</span><span className="font-mono">{amount} {asset}</span></div>
               <div className="flex justify-between"><span className="text-neutral-400">Credited</span><span className="font-mono">{usd(dq.quote.usd_value, 2)}</span></div>
               <div className="flex justify-between"><span className="text-neutral-400">Rate</span><span className="font-mono">{dq.quote.exchange_rate ?? '—'}</span></div>
               <p className="text-xs text-neutral-500">Strike builds the transaction and fixes the destination. Your wallet shows the exact amount and address before you approve.</p>
-              <button onClick={sendDeposit} disabled={!!busy} className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-neutral-950 disabled:opacity-40">Deposit</button>
+              <button onClick={sendDeposit} disabled={!!busy} className="rounded-md bg-maker px-4 py-2 font-medium text-neutral-950 disabled:opacity-40">Deposit</button>
             </div>
           )}
         </div>
@@ -184,14 +184,14 @@ export default function FundsModal({ tab: initial, network, onClose }: Props) {
           <label className="grid gap-1" htmlFor="wd-amt">
             <span className="text-xs uppercase tracking-wider text-neutral-500">Amount (USD)</span>
             <div className="flex gap-2">
-              <input id="wd-amt" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value.trim()); setWq(null); }} className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono" placeholder="10" />
-              <button onClick={() => setAmount(Math.floor(available * 100) / 100 + '')} className="rounded-md border border-neutral-700 px-3 text-sm hover:bg-neutral-900">Max</button>
+              <input id="wd-amt" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value.trim()); setWq(null); }} className="w-full rounded-md border border-ink-600 bg-ink-800 px-3 py-2 font-mono" placeholder="10" />
+              <button onClick={() => setAmount(Math.floor(available * 100) / 100 + '')} className="rounded-md border border-ink-600 px-3 text-sm hover:bg-ink-800">Max</button>
             </div>
           </label>
           {assets.length > 1 && (
             <label className="grid gap-1" htmlFor="wd-asset">
               <span className="text-xs uppercase tracking-wider text-neutral-500">Receive as</span>
-              <select id="wd-asset" value={asset} onChange={(e) => setAsset(e.target.value)} className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
+              <select id="wd-asset" value={asset} onChange={(e) => setAsset(e.target.value)} className="rounded-md border border-ink-600 bg-ink-800 px-3 py-2">
                 {assets.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </label>
@@ -199,12 +199,12 @@ export default function FundsModal({ tab: initial, network, onClose }: Props) {
           {!wq ? (
             <button onClick={quoteWithdraw} disabled={!!busy || !amount} className="rounded-md bg-neutral-100 px-4 py-2 font-medium text-neutral-950 disabled:opacity-40">Get quote</button>
           ) : (
-            <div className="grid gap-2 rounded-md bg-neutral-900 p-3 text-sm">
+            <div className="grid gap-2 rounded-md bg-ink-800 p-3 text-sm">
               <div className="flex justify-between"><span className="text-neutral-400">Withdraw</span><span className="font-mono">{usd(amount, 2)}</span></div>
               <div className="flex justify-between"><span className="text-neutral-400">Fee</span><span className="font-mono">{usd(wq.fee, 2)}</span></div>
               <div className="flex justify-between"><span className="text-neutral-400">To</span><span className="truncate font-mono">{me.address.slice(0, 16)}…</span></div>
-              {decodedMessage && <pre className="max-h-28 overflow-auto whitespace-pre-wrap rounded bg-neutral-950 p-2 text-xs text-neutral-400">{decodedMessage}</pre>}
-              <button onClick={sendWithdraw} disabled={!!busy} className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-neutral-950 disabled:opacity-40">Sign and withdraw</button>
+              {decodedMessage && <pre className="max-h-28 overflow-auto whitespace-pre-wrap rounded bg-ink p-2 text-xs text-neutral-400">{decodedMessage}</pre>}
+              <button onClick={sendWithdraw} disabled={!!busy} className="rounded-md bg-maker px-4 py-2 font-medium text-neutral-950 disabled:opacity-40">Sign and withdraw</button>
             </div>
           )}
           <p className="text-xs text-neutral-500">Strike sends withdrawals only to the wallet you connected. Argus's key cannot withdraw on its own.</p>

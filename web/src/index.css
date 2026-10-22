@@ -2,4 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { overflow-x: hidden; }
+@layer base {
+  html, body { overflow-x: hidden; }
+  body { font-feature-settings: 'ss01', 'cv11'; }
+  h1, h2, h3 { text-wrap: balance; }
+  ::selection { background: rgba(47, 211, 154, 0.3); }
+  :focus-visible { outline: 2px solid #2fd39a; outline-offset: 2px; border-radius: 4px; }
+  .num { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  .eyebrow { @apply font-mono text-[11px] uppercase tracking-[0.14em] text-neutral-500; }
+  .panel { @apply rounded-xl border border-ink-700 bg-ink-900; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition disabled:opacity-40; }
+  .btn-primary { @apply btn bg-maker text-ink hover:bg-[#4ce3ae]; }
+  .btn-ghost { @apply btn border border-ink-600 text-neutral-200 hover:border-neutral-500 hover:bg-ink-800; }
+  .prose-doc p { @apply leading-7 text-neutral-300; }
+  .prose-doc code { @apply rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[0.85em] text-neutral-200; }
+}
+
+/* A faint queue grid behind the landing hero. */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 30% 30%, black 30%, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

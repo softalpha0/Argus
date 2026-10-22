@@ -1,5 +1,5 @@
 import type { BookLevel } from '../lib/types';
-import { num } from '../lib/format';
+import { price as fmtPrice } from '../lib/format';
 
 interface Props {
   bids: BookLevel[];
@@ -19,7 +19,7 @@ export default function Ladder({ bids, asks, rows = 8, ours }: Props) {
     const width = (Number(l.total) / max) * 100;
     return (
       <div className={`grid grid-cols-[5.5rem_1fr_5.5rem] items-center gap-2 px-2 py-[3px] text-xs ${isOurs ? 'bg-amber-400/10 ring-1 ring-amber-400/50' : ''}`}>
-        <span className={`font-mono tabular-nums ${side === 'buy' ? 'text-emerald-400' : 'text-rose-400'}`}>{num(l.price, 0)}</span>
+        <span className={`font-mono tabular-nums ${side === 'buy' ? 'text-emerald-400' : 'text-rose-400'}`}>{fmtPrice(l.price)}</span>
         <div className="flex h-3 min-w-0 overflow-hidden rounded-sm" style={{ width: `${Math.max(width, 2)}%` }} title={`${l.orders.length} orders`}>
           {l.orders.slice(0, 40).map((o, i) => (
             <span
@@ -34,14 +34,14 @@ export default function Ladder({ bids, asks, rows = 8, ours }: Props) {
     );
   };
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 py-1">
+    <div className="rounded-lg border border-ink-700 bg-ink-900 py-1">
       <div className="grid grid-cols-[5.5rem_1fr_5.5rem] gap-2 px-2 pb-1 text-[11px] uppercase tracking-wider text-neutral-500">
         <span>Price</span>
         <span>Orders in line</span>
         <span className="text-right">BTC</span>
       </div>
       {a.map((l) => <Row key={`a${l.price}`} l={l} side="sell" />)}
-      <div className="my-1 border-t border-dashed border-neutral-700" />
+      <div className="my-1 border-t border-dashed border-ink-600" />
       {b.map((l) => <Row key={`b${l.price}`} l={l} side="buy" />)}
       {ours && <p className="px-2 pt-1 text-[11px] text-amber-300/80">Highlighted: the level where your order rests{ours.publicLinked === false ? ' (paper orders are not in the real book)' : ''}.</p>}
     </div>

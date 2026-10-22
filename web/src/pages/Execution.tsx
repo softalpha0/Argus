@@ -45,19 +45,19 @@ export default function Execution({ id }: { id: string }) {
           {done ? (
             <a href={`#/r/${ex.id}`} className="rounded-md bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-950">See report</a>
           ) : (
-            <button onClick={() => void stop()} disabled={stopping} className="rounded-md border border-neutral-700 px-4 py-2 text-sm hover:bg-neutral-900 disabled:opacity-50">
+            <button onClick={() => void stop()} disabled={stopping} className="rounded-md border border-ink-600 px-4 py-2 text-sm hover:bg-ink-800 disabled:opacity-50">
               {stopping ? 'Stopping…' : 'Stop and cancel'}
             </button>
           )}
         </header>
 
-        <div className="grid gap-2 rounded-lg border border-neutral-800 p-4">
+        <div className="grid gap-2 rounded-lg border border-ink-700 p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
             <span className="font-mono tabular-nums">{ex.filled} / {ex.size} BTC filled</span>
             <span className="font-mono tabular-nums text-neutral-400">{done ? ex.state : `${duration(ex.timeLeftSec)} left`}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
-            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${filledPct}%` }} />
+            <div className="h-full bg-maker transition-all" style={{ width: `${filledPct}%` }} />
           </div>
           {ex.working && q && !done && (
             <div className="grid gap-1 pt-2">
@@ -71,7 +71,7 @@ export default function Execution({ id }: { id: string }) {
 
         <section className="grid gap-2">
           <h2 className="text-sm uppercase tracking-wider text-neutral-500">What Argus did</h2>
-          <ol className="grid max-h-[24rem] gap-1 overflow-y-auto rounded-lg border border-neutral-800 p-3 text-sm">
+          <ol className="grid max-h-[24rem] gap-1 overflow-y-auto rounded-lg border border-ink-700 p-3 text-sm">
             {[...ex.events].reverse().map((e, i) => (
               <li key={i} className="grid grid-cols-[4.5rem_1fr] gap-2">
                 <span className="font-mono text-xs text-neutral-500">{time(e.ts)}</span>

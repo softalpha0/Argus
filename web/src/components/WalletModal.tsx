@@ -4,7 +4,7 @@ import { useWallet } from '../lib/wallet';
 export default function WalletModal({ network, onClose }: { network: string; onClose: () => void }) {
   const { connect, busy, error, cardanoWallets, hasPhantom } = useWallet();
   const option = (key: string, label: string, sub: string, icon: string | null, onClick: () => void) => (
-    <button key={key} onClick={onClick} disabled={busy} className="flex w-full items-center gap-3 rounded-lg border border-neutral-800 px-4 py-3 text-left hover:border-neutral-600 hover:bg-neutral-900 disabled:opacity-50">
+    <button key={key} onClick={onClick} disabled={busy} className="flex w-full items-center gap-3 rounded-lg border border-ink-700 px-4 py-3 text-left hover:border-neutral-600 hover:bg-ink-800 disabled:opacity-50">
       {icon ? <img src={icon} alt="" className="h-7 w-7 rounded" /> : <span className="grid h-7 w-7 place-items-center rounded bg-violet-500/20 text-sm text-violet-300">◎</span>}
       <span className="grid">
         <span className="font-medium">{label}</span>

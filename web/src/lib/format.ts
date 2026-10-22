@@ -9,3 +9,10 @@ export const btc = (v: string | number) => `${Number(v).toLocaleString('en-US', 
 export const pct = (v: string | number, digits = 0) => `${(Number(v) * 100).toFixed(digits)}%`;
 export const time = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 export const duration = (sec: number) => (sec >= 60 ? `${Math.floor(sec / 60)}m ${String(Math.round(sec % 60)).padStart(2, '0')}s` : `${Math.round(sec)}s`);
+
+/** A price with its own decimals kept (testnet ticks are 0.1), grouped by thousands. */
+export const price = (v: string) => {
+  const [i, d] = v.split('.');
+  const grouped = Number(i).toLocaleString('en-US');
+  return d && Number(d) !== 0 ? `${grouped}.${d.replace(/0+$/, '')}` : grouped;
+};

@@ -13,7 +13,7 @@ function Bucket({ title, b }: { title: string; b: StatBucket }) {
     ['Strike fees', usd(b.strikeFeesUsd)],
   ];
   return (
-    <section className="grid gap-2 rounded-lg border border-neutral-800 p-4">
+    <section className="grid gap-2 rounded-lg border border-ink-700 p-4">
       <h2 className="text-sm uppercase tracking-wider text-neutral-500">{title}</h2>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         {rows.map(([k, v]) => (
@@ -73,7 +73,7 @@ export default function Stats() {
         <Bucket title="Live" b={s.live} />
         <Bucket title="Paper" b={s.paper} />
       </div>
-      <section className="grid gap-2 rounded-lg border border-neutral-800 p-4 text-neutral-300">
+      <section className="grid gap-2 rounded-lg border border-ink-700 p-4 text-neutral-300">
         <h2 className="text-sm uppercase tracking-wider text-neutral-500">Saved vs a market order, per execution</h2>
         <SavingsChart series={s.series} />
         <p className="text-xs text-neutral-500">Green is saved, red is lost. Brighter bars are live runs.</p>

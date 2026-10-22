@@ -31,7 +31,8 @@ export function registerConnect(app: FastifyInstance, config: Config, accounts: 
       reply.setCookie(SESSION_COOKIE, r.token, {
         httpOnly: true,
         sameSite: 'lax',
-        secure: config.production,
+        // Secure only over HTTPS: browsers drop secure cookies on http://localhost.
+        secure: req.protocol === 'https',
         path: '/',
         maxAge: sessionTtlSec,
       });

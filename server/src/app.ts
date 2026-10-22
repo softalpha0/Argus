@@ -23,6 +23,8 @@ const webDist = path.resolve(here, '../../web/dist');
 
 export async function buildApp(config: Config, opts: { logger?: boolean; feeds?: MarketFeeds; manager?: ExecutionManager; store?: Store; accounts?: Accounts } = {}): Promise<FastifyInstance> {
   const app = Fastify({
+    // Render and most hosts terminate TLS at a proxy; trust it so req.protocol is right.
+    trustProxy: true,
     logger: opts.logger === false ? false : {
       level: config.production ? 'info' : 'debug',
       // Never log credentials.
