@@ -33,6 +33,18 @@ More volume, resting liquidity that tightens spreads, builder fees on every orde
 
 ## Proof it works
 
+Live results on Strike testnet, Oct 22, 2026, through builder code `Argus` with a Cardano (Lace) wallet:
+
+| Run | Size | Filled as maker | Saved vs a market order at arrival |
+|---|---|---|---|
+| 1 | 0.0013 BTC | 100% | $0.1913 |
+| 2 | 0.0015 BTC | 100% | $0.2123 |
+| **Total** | **0.00277 BTC · $225.61** | **100%** | **$0.4036 (17.89 bps), after $0.0451 of Argus fees** |
+
+Strike reported a $0 maker commission on testnet, so the saving here comes from resting inside the spread rather than the rebate; on mainnet the 0.005% rebate adds to it.
+
+Order records from Strike:
+
 | Network | Order ID | Builder | Status |
 |---|---|---|---|
 | Testnet | **TODO** from the report's "Orders as Strike reports them" table | Argus · 2 bps | |
