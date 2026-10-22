@@ -30,3 +30,29 @@ describe('canSee', () => {
     expect(canSee({ mode: 'live', owner: 'W1' }, 'W1')).toBe(true);
   });
 });
+
+describe('GET /api/reports/:id', async () => {
+  const { default: Fastify } = await import('fastify');
+  const { registerRoutes } = await import('../src/api/routes.js');
+  const { loadConfig } = await import('../src/config.js');
+  it('includes the orders as Strike reports them', async () => {
+    const stored = { id: 'r1', mode: 'live', owner: 'W1', side: 'buy', size: '0.001', state: 'done', createdAt: 1, endedAt: 2, report: { steps: [] }, fills: [], events: [], audit: { orders: [{ clientOrderId: 'argus-r1-1', id: 42, builder: { Code: 'Argus', FeeBps: 2 } }] } };
+    const app = Fastify();
+    registerRoutes(app, {
+      config: loadConfig({}),
+      feeds: {} as never,
+      manager: { get: () => ({ stored }) } as never,
+      store: { all: () => [] } as never,
+      ownerOf: () => 'W1',
+    });
+    const res = await app.inject({ method: 'GET', url: '/api/reports/r1' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().audit.orders[0]).toMatchObject({ id: 42, builder: { Code: 'Argus', FeeBps: 2 } });
+    const hidden = await (async () => {
+      const a2 = Fastify();
+      registerRoutes(a2, { config: loadConfig({}), feeds: {} as never, manager: { get: () => ({ stored }) } as never, store: { all: () => [] } as never, ownerOf: () => 'someone-else' });
+      return a2.inject({ method: 'GET', url: '/api/reports/r1' });
+    })();
+    expect(hidden.statusCode).toBe(404);
+  });
+});

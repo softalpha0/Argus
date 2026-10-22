@@ -132,6 +132,8 @@ export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
       report: j.report,
       fills: j.fills,
       events: j.events,
+      // Each order as Strike reports it (live), including its Builder code and fee.
+      audit: j.audit ?? null,
     };
   });
 
