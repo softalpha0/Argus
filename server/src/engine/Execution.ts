@@ -223,6 +223,9 @@ export class Execution extends EventEmitter<ExecutionEvents> {
         }
         const clientId = `argus-${this.id}-${++this.orderSeq}`;
         this.lastActionAt = now;
+        // Shown while the venue waits for the exchange to confirm the order.
+        this.lastHoldReason = `Placing a post-only ${this.params.side === 'buy' ? 'bid' : 'ask'} at ${d.price}, waiting for confirmation…`;
+        this.emit('change', this);
         try {
           const p = { side: this.params.side, price: d.price, size: this.remaining, clientId };
           const prev = this.working;
