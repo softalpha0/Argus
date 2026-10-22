@@ -7,10 +7,19 @@ import { ExecutionManager } from './engine/ExecutionManager.js';
 import { Accounts } from './users/Accounts.js';
 import { LiveVenue } from './engine/LiveVenue.js';
 import { syncClock } from './strike/rest.js';
+import { fetchBaseFees } from './strike/feeTiers.js';
 
 async function main() {
   const config = loadConfig();
   const logger = pino({ level: config.production ? 'info' : 'debug' });
+  if (!config.feesPinned) {
+    try {
+      Object.assign(config, await fetchBaseFees(config.hosts.rest));
+    } catch (err) {
+      logger.warn({ err: (err as Error).message }, 'could not read Strike fee tiers; using built-in base fees');
+    }
+  }
+  logger.info({ takerFee: config.takerFee, makerFee: config.makerFee }, 'fees for paper fills and estimates');
   const feeds = new MarketFeeds(config, logger);
   const store = new Store(config.dataDir);
   const manager = new ExecutionManager(config, feeds, store, logger.child({ mod: 'exec' }));

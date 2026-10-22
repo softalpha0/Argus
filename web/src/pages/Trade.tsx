@@ -138,7 +138,13 @@ export default function Trade({ config }: Props) {
           </div>
 
           <div className="rounded-md bg-ink-800 p-3 text-sm text-neutral-300">
-            Market orders pay <b className="font-mono">{takerPct}%</b>. Maker orders earn <b className="font-mono">{makerPct}%</b> back. Argus charges <b className="font-mono">{(config.argusFeeBps / 100).toFixed(2)}%</b>.
+            Market orders pay <b className="font-mono">{takerPct}%</b>. {Number(config.makerFee) < 0 ? (
+              <>Maker orders earn <b className="font-mono">{makerPct}%</b> back.</>
+            ) : Number(config.makerFee) > 0 ? (
+              <>Maker orders pay <b className="font-mono">{makerPct}%</b>.</>
+            ) : (
+              <>Maker orders pay <b className="font-mono">no fee</b>.</>
+            )} Argus charges <b className="font-mono">{(config.argusFeeBps / 100).toFixed(2)}%</b>.
             {usdEstimate ? (
               <span className="mt-1 block font-mono text-xs text-neutral-400">
                 On this order: market fee {usd(feeExample.market)} vs {usd(feeExample.argus)} if it fills as maker.

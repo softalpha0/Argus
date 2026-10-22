@@ -40,6 +40,8 @@ export interface Config {
   masterKey: string | null;
   takerFee: string;
   makerFee: string;
+  /** True when TAKER_FEE or MAKER_FEE is set; otherwise the fees are read from Strike at startup. */
+  feesPinned: boolean;
   production: boolean;
   /** Live mode needs a builder code and a master key. */
   liveConfigured: boolean;
@@ -95,7 +97,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     argusFeeBps,
     masterKey,
     takerFee: decimalVar(env, 'TAKER_FEE', '0.0005'),
-    makerFee: decimalVar(env, 'MAKER_FEE', '-0.00005'),
+    // Strike's base tier, until startup reads /v2/fee-tiers: testnet pays makers no rebate.
+    makerFee: decimalVar(env, 'MAKER_FEE', strikeEnv === 'testnet' ? '0' : '-0.00005'),
+    feesPinned: Boolean(env.TAKER_FEE?.trim() || env.MAKER_FEE?.trim()),
     production: env.NODE_ENV === 'production',
     liveConfigured: missing.length === 0,
     liveNotConfiguredReason: missing.length ? `Live mode is not configured: set ${missing.join(' and ')} in .env` : null,
