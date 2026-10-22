@@ -13,7 +13,7 @@ export interface Market {
 }
 
 export interface FillChecks { bestPrice?: string; firstInLine?: string; onTape?: string; linked?: boolean; note?: string; pending?: boolean }
-export interface ExecFill { ts: number; orderId: string; size: string; price: string; isMaker: boolean; fee: string; tradeId?: number; checks?: FillChecks }
+export interface ExecFill { ts: number; orderId: string; size: string; price: string; isMaker: boolean; fee: string; builderFee?: string; tradeId?: number; checks?: FillChecks }
 export interface ExecEvent { ts: number; text: string; kind: 'info' | 'action' | 'fill' | 'warn' | 'error' }
 export interface ReportStep { n: number; label: string; formula: string; value: string }
 export interface Report {

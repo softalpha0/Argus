@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
 import type { Logger } from 'pino';
 import { Backoff } from './backoff.js';
-import { signHex, type ApiWalletKey } from './rest.js';
+import { getClockSkew, signHex, type ApiWalletKey } from './rest.js';
 import type { SocketLike } from './l3Client.js';
 
 /** ORDER_TRADE_UPDATE data, Binance-style keys. */
@@ -25,6 +25,8 @@ export interface OrderTradeUpdate {
   t: number;
   T: number;
   cr?: string;
+  /** Builder fee Strike charged on this fill, separately from the commission n. */
+  builder_fee?: string;
   [k: string]: unknown;
 }
 
@@ -130,7 +132,8 @@ export class UserStream extends EventEmitter<UserStreamEvents> {
     this.ws = ws;
     ws.on('open', () => {
       if (gen !== this.gen) return;
-      const ts = Date.now();
+      // Logon allows at most 30 s in the future; correct for a fast local clock.
+      const ts = Date.now() - Math.max(0, getClockSkew());
       void signHex(logonMessage(ts, this.key.publicKey), this.key.secretKey).then((signature) => {
         if (gen !== this.gen) return;
         ws.send(JSON.stringify({ method: 'session.logon', id: 1, params: { apiKey: this.key.publicKey, signature, timestamp: ts } }));

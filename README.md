@@ -173,6 +173,10 @@ Things observed against the live API while building, beyond what the docs say:
 - Measured on Oct 21, 2026 (around 04:00–04:25 UTC): 4 trades in one 10-minute window and **0** in another. Ten paper executions over the same period got no maker fills, and eight finished with the deadline market order. When taker flow is this thin, a maker order mostly waits and then pays the taker fee anyway. Reports show this as it is.
 - L3 `trade_id` is the same number as the trade stream's `t`, so fills can be matched to the public tape by ID, not just by price and size.
 - A `post_only` order that would cross is cancelled rather than filled (Strike docs, Order Types).
+- From Strike's builder reference: `POST /v2/order/replace` ignores `X-Builder-Fee-Bps`, so a replaced order carries no builder fee. Argus reprices with cancel then place.
+- Each fill on the user stream carries `builder_fee`, charged separately from the commission and rounded down to the cent. Live reports use it.
+- Testnet charges no maker commission (and pays no rebate), but does charge the 0.05% taker fee.
+- Strike rejects request timestamps from the future; Argus corrects for a fast local clock using `GET /v2/time`.
 
 ### Checking the L3 sync yourself
 

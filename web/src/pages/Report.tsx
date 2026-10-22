@@ -102,6 +102,7 @@ export default function Report({ id }: { id: string }) {
                   <th className="px-3 py-2 font-normal">Price</th>
                   <th className="px-3 py-2 font-normal">Type</th>
                   <th className="px-3 py-2 font-normal">Fee</th>
+                  {live && <th className="px-3 py-2 font-normal" title="As charged by Strike on this fill">Builder fee</th>}
                   {live && <th className="px-3 py-2 font-normal" title="Best price · First in line · On the tape">Checks</th>}
                 </tr>
               </thead>
@@ -113,6 +114,7 @@ export default function Report({ id }: { id: string }) {
                     <td className="px-3 py-2">{usd(f.price, 0)}</td>
                     <td className="px-3 py-2">{f.isMaker ? <span className="text-emerald-400">maker</span> : <span className="text-amber-300">taker</span>}</td>
                     <td className="px-3 py-2">{usd(f.fee)}</td>
+                    {live && <td className="px-3 py-2">{f.builderFee !== undefined ? usd(f.builderFee) : '—'}</td>}
                     {live && (
                       <td className="px-3 py-2 font-sans text-xs" title={f.checks?.note}>
                         {f.isMaker ? (

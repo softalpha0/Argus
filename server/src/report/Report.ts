@@ -6,6 +6,8 @@ export interface ReportFill {
   price: Decimal;
   isMaker: boolean;
   fee: Decimal;
+  /** Builder fee as Strike charged it (live). When every fill has one, the report uses these. */
+  builderFee?: Decimal;
 }
 
 export interface BookLevelLite {
@@ -81,7 +83,8 @@ export function buildReport(inp: ReportInput): ExecutionReport {
   const notional = inp.fills.reduce((s, f) => s.plus(f.size.mul(f.price)), ZERO);
   const makerSize = inp.fills.filter((f) => f.isMaker).reduce((s, f) => s.plus(f.size), ZERO);
   const strikeFees = inp.fills.reduce((s, f) => s.plus(f.fee), ZERO);
-  const argusFee = notional.mul(inp.argusFeeBps).div(10_000);
+  const charged = inp.fills.length > 0 && inp.fills.every((f) => f.builderFee !== undefined);
+  const argusFee = charged ? inp.fills.reduce((s, f) => s.plus(f.builderFee!), ZERO) : notional.mul(inp.argusFeeBps).div(10_000);
   const notes: string[] = [];
 
   const avg = Q.gt(0) ? notional.div(Q) : null;
@@ -112,7 +115,12 @@ export function buildReport(inp: ReportInput): ExecutionReport {
     { n: 1, label: 'Average price', formula: `Σ(price × size) / Q = ${usd(notional)} / ${Q}`, value: avg ? avg.toDecimalPlaces(2).toString() : '—' },
     { n: 2, label: 'Price cost vs arrival', formula: `${pcWord} = ${avg ? `(${inp.side === 'buy' ? `${avg.toDecimalPlaces(4)} − ${inp.arrivalMid}` : `${inp.arrivalMid} − ${avg.toDecimalPlaces(4)}`}) × ${Q}` : '—'}`, value: usd2(priceCost) },
     { n: 3, label: 'Strike fees (negative = rebate)', formula: 'Σ fee on each fill', value: usd2(strikeFees) },
-    { n: 4, label: 'Argus fee', formula: `${usd(notional)} × ${inp.argusFeeBps} / 10000`, value: usd2(argusFee) },
+    {
+      n: 4,
+      label: 'Argus fee',
+      formula: charged ? `Σ builder fee Strike charged on each fill (${inp.argusFeeBps} bps, rounded down to the cent)` : `${usd(notional)} × ${inp.argusFeeBps} / 10000`,
+      value: usd2(argusFee),
+    },
     { n: 5, label: 'Total cost', formula: 'price cost + Strike fees + Argus fee', value: usd2(totalCost) },
     {
       n: 6,

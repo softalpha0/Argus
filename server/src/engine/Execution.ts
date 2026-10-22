@@ -52,6 +52,8 @@ export interface RecordedFill {
   price: string;
   isMaker: boolean;
   fee: string;
+  /** Builder fee as charged by Strike (live), if reported. */
+  builderFee?: string;
   tradeId?: number;
   checks?: Record<string, unknown>;
 }
@@ -147,6 +149,7 @@ export class Execution extends EventEmitter<ExecutionEvents> {
       price: f.price.toString(),
       isMaker: f.isMaker,
       fee: f.fee.toString(),
+      builderFee: f.builderFee?.toString(),
       tradeId: f.tradeId,
     };
     rec.checks = f.checks; // same object; the venue fills it in later and fires 'update'

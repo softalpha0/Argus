@@ -41,6 +41,20 @@ export async function generateApiWallet(): Promise<ApiWalletKey> {
   return { publicKey, secretKey };
 }
 
+/** Local clock minus Strike's clock, in ms. Strike rejects timestamps from the future. */
+let clockSkewMs = 0;
+export const getClockSkew = () => clockSkewMs;
+
+export async function syncClock(baseUrl: string, fetchFn: typeof fetch = fetch): Promise<number> {
+  const t0 = Date.now();
+  const res = await fetchFn(`${baseUrl}/v2/time`);
+  const t1 = Date.now();
+  if (!res.ok) throw new Error(`time HTTP ${res.status}`);
+  const { serverTime } = (await res.json()) as { serverTime: number };
+  clockSkewMs = (t0 + t1) / 2 - serverTime;
+  return clockSkewMs;
+}
+
 export async function signHex(message: string, secretKey: Uint8Array): Promise<string> {
   return bytesToHex(await ed.signAsync(utf8ToBytes(message), normalizeSecretKey(secretKey)));
 }
@@ -80,7 +94,8 @@ export class StrikeRest {
 
   constructor(private readonly opts: RestOptions, private readonly key?: ApiWalletKey) {
     this.fetchFn = opts.fetchFn ?? fetch;
-    this.now = opts.now ?? Date.now;
+    // Never sign a timestamp ahead of Strike's clock: subtract any positive skew, plus a second of margin.
+    this.now = opts.now ?? (() => Date.now() - Math.max(0, clockSkewMs) - 1000);
   }
 
   withKey(key: ApiWalletKey): StrikeRest {

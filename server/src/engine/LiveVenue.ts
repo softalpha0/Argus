@@ -177,26 +177,19 @@ export class LiveVenue extends EventEmitter<VenueEvents> implements Venue {
     return this.d.rest.getOrderByClientId(this.d.symbol, clientId);
   }
 
+  /**
+   * Cancel, then place. Strike's POST /v2/order/replace ignores X-Builder-Fee-Bps (the
+   * replacement would carry no builder fee), so we never use it. If the old order fills
+   * while we cancel, the fill still arrives on the stream and the new order is sized by
+   * the execution from what is left.
+   */
   async replace(order: WorkingOrder, p: PlaceParams): Promise<WorkingOrder> {
-    const old = this.tracked.get(order.id);
-    if (!old || order.exchangeId === undefined) {
-      await this.cancel(order);
-      return this.place(p);
-    }
-    await this.rateLimit();
-    old.cancelRequested = true;
-    const t = this.track(p, true);
-    try {
-      await this.d.rest.replaceOrder({ order_id: order.exchangeId, symbol: this.d.symbol }, this.body(p), this.d.argusFeeBps);
-    } catch (err) {
-      this.untrack(t);
-      old.cancelRequested = false;
-      if (err instanceof StrikeError && POST_ONLY_HINT.test(err.message)) throw new PostOnlyRejected(err.message);
-      throw err;
-    }
-    // The old order's cancel arrives on the stream; don't block on it.
-    await this.awaitAck(t);
-    return t.order;
+    const filledBefore = order.filled;
+    await this.cancel(order);
+    // Anything that filled while we cancelled comes off the new order's size.
+    const size = p.size.minus(order.filled.minus(filledBefore));
+    if (size.lte(0)) return order;
+    return this.place({ ...p, size });
   }
 
   async cancel(order: WorkingOrder): Promise<void> {
@@ -316,7 +309,8 @@ export class LiveVenue extends EventEmitter<VenueEvents> implements Venue {
       if (size.gt(0)) {
         const price = new Decimal(e.L);
         o.filled = new Decimal(e.z || o.filled.plus(size));
-        const fill: Fill = { orderId: o.id, size, price, isMaker: e.m === true, fee: new Decimal(e.n || '0'), tradeId: e.t || undefined, ts: e.T || Date.now(), checks: { pending: true } };
+        const builderFee = typeof e.builder_fee === 'string' && e.builder_fee !== '' ? new Decimal(e.builder_fee) : undefined;
+        const fill: Fill = { orderId: o.id, size, price, isMaker: e.m === true, fee: new Decimal(e.n || '0'), builderFee, tradeId: e.t || undefined, ts: e.T || Date.now(), checks: { pending: true } };
         this.emit('fill', fill);
         if (t.postOnly) this.scheduleChecks(fill, !!o.publicId);
       }

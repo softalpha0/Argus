@@ -65,6 +65,16 @@ describe('Report', () => {
     expect(part.baselineCost).toBe('0.52525');
   });
 
+  it("uses Strike's charged builder fees when every fill reports one", () => {
+    const r = buildReport({
+      side: 'buy', requestedSize: D('0.0013'), arrivalMid: D(81_689.95), argusFeeBps: 2, takerFee: D('0.0005'),
+      fills: [{ size: D('0.0013'), price: D('81628.7'), isMaker: true, fee: D(0), builderFee: D('0.02') }],
+      arrivalOpposite: [{ price: D('81751.3'), size: D(1) }],
+    });
+    expect(r.argusFee).toBe('0.02');
+    expect(r.steps[3]!.formula).toMatch(/Strike charged/);
+  });
+
   it('walkBook averages across levels', () => {
     expect(walkBook([{ price: D(10), size: D(1) }, { price: D(20), size: D(1) }], D('1.5')).avg!.toString()).toBe('13.333333333333333333');
   });

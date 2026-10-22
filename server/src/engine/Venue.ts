@@ -24,6 +24,8 @@ export interface Fill {
   isMaker: boolean;
   /** Strike fee in quote currency. Negative is a rebate. */
   fee: Decimal;
+  /** Builder fee Strike charged on this fill (live only, from the user stream). */
+  builderFee?: Decimal;
   tradeId?: number;
   ts: number;
   /** Fairness checks (live only); filled in shortly after the fill, then `update` fires. */

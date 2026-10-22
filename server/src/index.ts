@@ -6,6 +6,7 @@ import { Store } from './store/Store.js';
 import { ExecutionManager } from './engine/ExecutionManager.js';
 import { Accounts } from './users/Accounts.js';
 import { LiveVenue } from './engine/LiveVenue.js';
+import { syncClock } from './strike/rest.js';
 
 async function main() {
   const config = loadConfig();
@@ -41,6 +42,12 @@ async function main() {
 
   await app.listen({ port: config.port, host: '0.0.0.0' });
   void feeds.start();
+  const resync = () =>
+    syncClock(config.hosts.rest)
+      .then((skew) => Math.abs(skew) > 2000 && logger.warn({ skewMs: Math.round(skew) }, 'local clock differs from Strike; correcting signatures'))
+      .catch((err) => logger.warn({ err: (err as Error).message }, 'could not read Strike server time'));
+  void resync();
+  setInterval(() => void resync(), 10 * 60_000).unref();
   shutdownHook = async () => {
     await manager.shutdown();
     feeds.stop();

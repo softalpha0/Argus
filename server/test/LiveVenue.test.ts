@@ -123,13 +123,27 @@ describe('LiveVenue', () => {
     expect(o.done).toBe(true);
   });
 
-  it('replaces atomically with the old exchange id', async () => {
+  it('replaces by cancel then place, never the replace endpoint (it drops the builder fee)', async () => {
     const { venue, behaviour, ev, calls } = setup();
     behaviour.onCreate = (b) => ev({ c: b.client_order_id, x: 'NEW', i: b.client_order_id === 'r1' ? 11 : 12 });
     const o = await venue.place({ side: 'buy', price: D('100'), size: D('0.001'), clientId: 'r1' });
-    const n = await venue.replace(o, { side: 'buy', price: D('101'), size: D('0.001'), clientId: 'r2' });
-    expect(calls.at(-1)).toMatchObject({ fn: 'replace', args: [{ order_id: 11, symbol: 'BTC-USD' }, { client_order_id: 'r2', price: '101', post_only: true }, 2] });
+    const p = venue.replace(o, { side: 'buy', price: D('101'), size: D('0.001'), clientId: 'r2' });
+    setTimeout(() => ev({ c: 'r1', x: 'CANCELED', X: 'CANCELED', i: 11 }), 20);
+    const n = await p;
+    expect(calls.map((c) => c.fn)).toEqual(['create', 'cancel', 'create']);
+    expect(calls.at(-1)).toMatchObject({ fn: 'create', args: [{ client_order_id: 'r2', price: '101', post_only: true }, 2] });
+    expect(calls.some((c) => c.fn === 'replace')).toBe(false);
     expect(n.exchangeId).toBe(12);
+  });
+
+  it('records the builder fee Strike reports on each fill', async () => {
+    const { venue, behaviour, ev } = setup();
+    behaviour.onCreate = (b) => ev({ c: b.client_order_id, x: 'NEW', i: 70 });
+    const fills: Fill[] = [];
+    venue.on('fill', (f) => fills.push(f));
+    await venue.place({ side: 'buy', price: D('100'), size: D('0.001'), clientId: 'bf1' });
+    ev({ c: 'bf1', x: 'TRADE', X: 'FILLED', i: 70, l: '0.001', L: '100', z: '0.001', n: '0', m: true, t: 9, builder_fee: '0.02' } as any);
+    expect(fills[0]!.builderFee!.toString()).toBe('0.02');
   });
 
   it('crosses with a market order and collects taker fills', async () => {
