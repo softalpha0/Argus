@@ -108,6 +108,25 @@ describe('Execution (paper)', () => {
     expect(exec.report!.notes[0]).toMatch(/Nothing filled/);
   });
 
+  it('cancels at the deadline instead of waiting when the order book is offline', async () => {
+    let live = true;
+    const { exec } = setup();
+    (exec as any).d.bookLive = () => live;
+    exec.start();
+    await flush();
+    expect(exec.working).not.toBeNull();
+    live = false;
+    clock += 30_000;
+    await exec.step();
+    expect(exec.state).toBe('working'); // before the deadline it just waits
+    clock += 31_000;
+    await exec.step();
+    expect(exec.state).toBe('done');
+    expect(exec.working).toBeNull();
+    expect(exec.fills).toHaveLength(0);
+    expect(exec.events.at(-1)!.text).toMatch(/order book was offline/);
+  });
+
   it('rejects orders below the minimum and can be stopped', async () => {
     const { exec } = setup({ size: new Decimal('0.00005') });
     expect(() => exec.start()).toThrow(/below Strike's minimum/);

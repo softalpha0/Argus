@@ -159,8 +159,13 @@ export class Execution extends EventEmitter<ExecutionEvents> {
   /** One decision. Exposed for tests. */
   async step(): Promise<void> {
     if (this.busy || this.state !== 'working') return;
-    if (this.d.bookLive && !this.d.bookLive()) return;
     const now = this.now();
+    if (this.d.bookLive && !this.d.bookLive()) {
+      // No trustworthy book: don't make decisions. But never let an order outlive its
+      // deadline because the feed is down; cancel instead of trading on stale data.
+      if (now >= this.deadline) await this.stopBlind();
+      return;
+    }
     if (now - this.lastActionAt < (this.d.minActionGapMs ?? 500)) return;
     this.busy = true;
     try {
@@ -261,6 +266,19 @@ export class Execution extends EventEmitter<ExecutionEvents> {
         await this.finish('done', got.gt(0) ? `Market order filled ${got} BTC` : 'Market order found no liquidity within your limit');
         return;
       }
+    }
+  }
+
+  private async stopBlind(): Promise<void> {
+    this.busy = true;
+    try {
+      this.state = 'finishing';
+      await this.cancelWorking();
+      await this.finish('done', `Deadline passed while the order book was offline. Cancelled the remaining ${this.remaining} BTC instead of trading on stale data.`);
+    } catch (err) {
+      await this.fail(`Deadline passed while the order book was offline and the cancel failed: ${(err as Error).message}`);
+    } finally {
+      this.busy = false;
     }
   }
 
