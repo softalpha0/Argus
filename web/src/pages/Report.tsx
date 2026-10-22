@@ -19,7 +19,7 @@ interface ReportResponse {
   report: R;
   fills: ExecFill[];
   events: ExecEvent[];
-  audit?: { orders?: { clientOrderId: string; id?: number; status?: string; builder?: { Code: string; FeeBps: number } | null; error?: string }[] } | null;
+  audit?: { orders?: { clientOrderId: string; id?: number; status?: string; builder?: { Code?: string; FeeBps?: number } | null; error?: string; raw?: Record<string, unknown> }[] } | null;
 }
 
 const Check = ({ v }: { v?: string }) =>
@@ -28,6 +28,7 @@ const Check = ({ v }: { v?: string }) =>
 export default function Report({ id }: { id: string }) {
   const [r, setR] = useState<ReportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recheck, setRecheck] = useState<{ busy: boolean; data: unknown[] | null; error: string | null }>({ busy: false, data: null, error: null });
 
   useEffect(() => {
     let timer: number | undefined;
@@ -149,12 +150,38 @@ export default function Report({ id }: { id: string }) {
                   <tr key={o.clientOrderId} className="border-t border-ink-700">
                     <td className="px-3 py-2">{o.id ?? o.clientOrderId}</td>
                     <td className="px-3 py-2">{o.status ?? o.error}</td>
-                    <td className="px-3 py-2">{o.builder ? `${o.builder.Code} · ${o.builder.FeeBps} bps` : '—'}</td>
+                    <td className="px-3 py-2">{o.builder ? `${o.builder.Code ?? '?'} · ${o.builder.FeeBps ?? '?'} bps` : o.raw ? 'not shown by Strike' : '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              className="btn-ghost"
+              disabled={recheck.busy}
+              onClick={async () => {
+                setRecheck({ busy: true, data: null, error: null });
+                try {
+                  const ids = r.audit!.orders!.map((o) => o.clientOrderId);
+                  const data = await Promise.all(ids.map((id) => api<Record<string, unknown>>(`/api/orders/${encodeURIComponent(id)}`)));
+                  setRecheck({ busy: false, data, error: null });
+                } catch (e) {
+                  setRecheck({ busy: false, data: null, error: (e as Error).message });
+                }
+              }}
+            >
+              {recheck.busy ? 'Asking Strike…' : 'Check again with Strike'}
+            </button>
+            {recheck.error && <span className="text-sm text-red-400">{recheck.error}</span>}
+          </div>
+          {recheck.data && (
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-ink-700 p-3 font-mono text-xs text-neutral-300">{JSON.stringify(recheck.data, null, 2)}</pre>
+          )}
+          <details className="rounded-lg border border-ink-700 p-3 text-sm">
+            <summary className="cursor-pointer text-neutral-400">Full order records from Strike (GET /v2/order)</summary>
+            <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap font-mono text-xs text-neutral-300">{JSON.stringify(r.audit.orders.map((o) => o.raw ?? o), null, 2)}</pre>
+          </details>
         </section>
       )}
 

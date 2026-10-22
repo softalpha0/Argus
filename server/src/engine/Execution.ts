@@ -332,6 +332,10 @@ export class Execution extends EventEmitter<ExecutionEvents> {
       arrivalOpposite: levels,
     });
     this.log(state === 'failed' ? 'error' : 'info', reason);
+    // Fairness checks land a few seconds after a fill; wait for them so the saved report has them.
+    for (let waited = 0; waited < 6000 && this.fills.some((f) => (f.checks as { pending?: boolean } | undefined)?.pending); waited += 200) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
     if (this.d.venue.audit) {
       try {
         this.audit = await Promise.race([this.d.venue.audit(), new Promise((r) => setTimeout(() => r({ error: 'timed out' }), 8000))]);

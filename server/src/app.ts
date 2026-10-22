@@ -54,7 +54,7 @@ export async function buildApp(config: Config, opts: { logger?: boolean; feeds?:
     const ownerOf: (req: FastifyRequest) => string | null = opts.accounts ? sessionOwner(opts.accounts, config.env) : () => null;
     if (opts.accounts) {
       registerConnect(app, config, opts.accounts);
-      registerFunds(app, opts.accounts, ownerOf);
+      registerFunds(app, opts.accounts, ownerOf, config.symbol);
     }
     const feeds = opts.feeds;
     app.get('/api/market', async () => ({ ...marketView(feeds, config.symbol), sync: { ...feeds.l3.stats }, tape: { connected: feeds.tape.connected, trades: feeds.tape.tradesSeen } }));

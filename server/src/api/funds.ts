@@ -30,7 +30,7 @@ export function toSmallestUnit(amount: unknown, decimals: number): string {
  * recipient (the user's own wallet), and every step still needs the user's
  * wallet signature in the browser.
  */
-export function registerFunds(app: FastifyInstance, accounts: Accounts, ownerOf: (req: FastifyRequest) => string | null): void {
+export function registerFunds(app: FastifyInstance, accounts: Accounts, ownerOf: (req: FastifyRequest) => string | null, symbol = 'BTC-USD'): void {
   const fail = (reply: FastifyReply, err: unknown) => {
     if (err instanceof ConnectError) return reply.code(err.status).send({ error: err.message });
     if (err instanceof StrikeError) return reply.code(err.status >= 500 || err.status === 0 ? 502 : 400).send({ error: `Strike: ${err.message}` });
@@ -43,6 +43,17 @@ export function registerFunds(app: FastifyInstance, accounts: Accounts, ownerOf:
     if (!u) throw new ConnectError('Connect your wallet first', 401);
     return { owner, chain: u.chain ?? 'solana', rest: accounts.restFor(owner) } as const;
   };
+
+  // One of the user's own orders, exactly as Strike returns it (evidence for reports).
+  app.get<{ Params: { clientOrderId: string } }>('/api/orders/:clientOrderId', async (req, reply) => {
+    try {
+      const { rest } = user(req);
+      if (!/^argus-[A-Za-z0-9-]+$/.test(req.params.clientOrderId)) throw new ConnectError('Not an Argus order ID');
+      return await rest.getOrderByClientId(symbol, req.params.clientOrderId);
+    } catch (err) {
+      return fail(reply, err);
+    }
+  });
 
   app.get('/api/funds/options', async (req, reply) => {
     try {

@@ -264,7 +264,14 @@ export class LiveVenue extends EventEmitter<VenueEvents> implements Venue {
     for (const id of ids.slice(-10)) {
       try {
         const o = await this.lookup(id);
-        out.push({ clientOrderId: id, id: o.ID, status: o.Status, type: o.Type, price: o.Price, size: o.Size, filled: o.Filled, postOnly: o.PostOnly, builder: o.Builder ?? null });
+        // Strike documents Builder as {Code, FeeBps}; accept close variants and keep the full record as evidence.
+        const b = (o.Builder ?? o.builder ?? null) as { Code?: string; FeeBps?: number; code?: string; fee_bps?: number } | null;
+        const builder = b
+          ? { Code: b.Code ?? b.code, FeeBps: b.FeeBps ?? b.fee_bps }
+          : o.BuilderCode || o.builder_code
+            ? { Code: (o.BuilderCode ?? o.builder_code) as string, FeeBps: (o.BuilderFeeBps ?? o.builder_fee_bps) as number }
+            : null;
+        out.push({ clientOrderId: id, id: o.ID ?? o.id, status: o.Status ?? o.status, type: o.Type ?? o.type, price: o.Price ?? o.price, size: o.Size ?? o.size, filled: o.Filled ?? o.filled, postOnly: o.PostOnly ?? o.post_only, builder, raw: o });
       } catch (err) {
         out.push({ clientOrderId: id, error: (err as Error).message });
       }
