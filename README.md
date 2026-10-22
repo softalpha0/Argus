@@ -4,7 +4,7 @@
 
 On Strike, market orders pay a 0.05% fee and maker orders earn a 0.005% rebate. Argus takes your order and works it as a maker order, using Strike's live L3 queue data to decide where to wait in line and when to move. You pay less, Strike gets more volume and deeper liquidity, and every order runs through Strike's Builder Codes.
 
-- **Live app:** `https://<your-app>.onrender.com`
+- **Live app:** https://argus-5es2.onrender.com (Strike testnet; on the free plan the first visit after a quiet spell takes about 30 seconds)
 - **Demo video:** `<link>`
 - **Docs:** in the app under **Docs**, or [the source](web/src/pages/Docs.tsx)
 - Built for the Strike Finance Hackathon, October 2026.

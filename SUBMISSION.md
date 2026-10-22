@@ -7,7 +7,7 @@ Everything needed for the Strike Hackathon form. Fill the three blanks marked **
 | | |
 |---|---|
 | Repo | https://github.com/softalpha0/Argus |
-| Live app | **TODO** Render URL |
+| Live app | https://argus-5es2.onrender.com (Strike testnet) |
 | Demo video | **TODO** link (under 3 minutes) |
 
 ## One line
@@ -79,7 +79,7 @@ Screenshots: `docs/screenshots/` (landing, trade, execution, report, stats, docs
 ## Checklist
 
 - [ ] Repo pushed and public
-- [ ] Render deployed; `/healthz` returns ok; landing loads on a phone
+- [x] Render deployed; `/healthz` returns ok; landing loads on a phone
 - [ ] One live order on testnet (or mainnet) with the builder code shown in the report
 - [ ] Demo video recorded and linked
 - [ ] Links filled in above and in README
