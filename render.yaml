@@ -3,24 +3,18 @@ services:
   - type: web
     name: argus
     runtime: node
-    plan: starter            # always on; the free plan sleeps and stops running executions
+    plan: free               # sleeps after 15 min idle, no disk; see README for an always-on setup
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
     autoDeploy: true
-    disk:
-      name: argus-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22"
       - key: NODE_ENV
         value: production
-      - key: DATA_DIR
-        value: /var/data
       - key: STRIKE_ENV
-        value: mainnet
+        value: testnet
       - key: SYMBOL
         value: BTC-USD
       - key: ARGUS_FEE_BPS
@@ -28,6 +22,6 @@ services:
       - key: BUILDER_MAX_FEE_BPS
         value: "10"
       - key: BUILDER_CODE
-        sync: false          # set in the Render dashboard, e.g. argus
+        sync: false          # set in the Render dashboard: Argus on testnet, argus on mainnet
       - key: ARGUS_MASTER_KEY
         sync: false          # 64 hex chars; generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

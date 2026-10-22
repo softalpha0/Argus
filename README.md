@@ -105,14 +105,14 @@ Strike's testnet takes Cardano Preprod test ADA. Get some from the [Cardano fauc
 
 ### Deploy to Render
 
-`render.yaml` defines one always-on web service with a 1 GB disk for `DATA_DIR`.
+`render.yaml` defines one web service on Render's free plan, running against Strike testnet.
 
 1. Push this repo to GitHub.
 2. In Render, choose **New → Blueprint** and pick the repo.
 3. Set `BUILDER_CODE` and `ARGUS_MASTER_KEY` when prompted. Generate the key with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 4. Deploy. The app is served at the Render URL; `/healthz` returns `{"ok":true}`.
 
-Use the starter plan or higher: the free plan sleeps, which stops running executions.
+The free plan sleeps after 15 minutes without visitors (the first visit after that takes about 30 seconds) and has no disk, so run history and connected wallets reset on each restart. Open the site before a demo to wake it. For an always-on deployment, set `plan: starter`, add a disk mounted at `/var/data` and set `DATA_DIR=/var/data`.
 
 ---
 
