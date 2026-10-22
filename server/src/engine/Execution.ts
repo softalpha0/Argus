@@ -192,7 +192,7 @@ export class Execution extends EventEmitter<ExecutionEvents> {
       timeLeftSec: (this.deadline - now) / 1000,
       now,
       lastRepriceAt: this.lastRepriceAt,
-      working: w && !w.done ? { price: w.price, crossed: venue.isCrossed?.(w) ?? false } : null,
+      working: w && !w.done ? { price: w.price, crossed: venue.isCrossed?.(w) ?? false, sizeAhead: this.d.venue.queuePosition(w).sizeAhead } : null,
       estimate: (price, asWorking) => {
         const ahead = asWorking && w ? this.d.venue.queuePosition(w).sizeAhead : undefined;
         return this.d.model.expectedFillSeconds(this.params.side, price, this.remaining, now, ahead);

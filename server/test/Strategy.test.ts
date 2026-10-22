@@ -107,6 +107,15 @@ describe('decide', () => {
     expect(decide(input({ working: { price: D(99_999) }, bestAsk: D(100_000), estimate: () => 700 })).type).toBe('hold');
   });
 
+  it('never outbids itself when it is already alone at the best price', () => {
+    // Live: our own order is the best bid (99,999), nothing ahead, wide spread, slow queue.
+    const alone = decide(input({ working: { price: D(99_999), sizeAhead: D(0) }, bestAsk: D(100_010), estimate: () => 700 }));
+    expect(alone.type).toBe('hold');
+    // Someone ahead at our price: improving is allowed.
+    const behind = decide(input({ working: { price: D(99_999), sizeAhead: D('0.5') }, bestAsk: D(100_010), estimate: () => 700 }));
+    expect(behind.type).toBe('replace');
+  });
+
   it('applies the 2 s reprice cooldown', () => {
     const d = decide(input({ working: { price: D(99_990) }, lastRepriceAt: 9_000, now: 10_000 }));
     expect(d).toEqual({ type: 'hold', reason: 'cooldown' });

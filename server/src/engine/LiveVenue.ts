@@ -249,7 +249,9 @@ export class LiveVenue extends EventEmitter<VenueEvents> implements Venue {
       const pos = this.book.positionOf(order.publicId);
       if (pos) return { place: pos.index + 1, sizeAhead: pos.sizeAheadInLevel.plus(better), estimating: false };
     }
-    // Not linked yet: assume we are at the back of our level.
+    // Not linked yet: try the book once more, else assume we are at the back of our level.
+    const t = this.tracked.get(order.id);
+    if (t && t.acked && this.tryLink(t)) return this.queuePosition(order);
     const level = this.book.level(order.side, order.price);
     let ahead = level?.total ?? new Decimal(0);
     if (level) ahead = ahead.minus(order.size.minus(order.filled)).clamp(0, Infinity);
@@ -372,19 +374,47 @@ export class LiveVenue extends EventEmitter<VenueEvents> implements Venue {
         !taken.has(u.order_id!) &&
         this.book.hasOrder(u.order_id!),
     );
-    if (!match) return false;
-    o.publicId = match.u.order_id!;
+    const id = match?.u.order_id ?? this.findInBook(o);
+    if (!id) return false;
+    o.publicId = id;
     this.publicIds.add(o.publicId);
     if (t.linkTimer) clearTimeout(t.linkTimer);
-    this.d.logger.debug({ order: o.id, publicId: o.publicId }, 'linked order to L3');
+    this.d.logger.info({ order: o.id, publicId: o.publicId, via: match ? 'open event' : 'book scan' }, 'linked order to L3');
     this.emit('update');
     return true;
+  }
+
+  /**
+   * Backup link: an order at our price, with our remaining size, that appeared around the time we
+   * placed ours and is not already someone else's link. Only links when exactly one fits.
+   * Book timestamps are engine time, so allow some clock skew.
+   */
+  private findInBook(o: WorkingOrder): string | undefined {
+    const level = this.book.level(o.side, o.price);
+    if (!level) return undefined;
+    const remaining = o.size.minus(o.filled);
+    const fits = level.orders.filter((x) => x.size.eq(remaining) && !this.publicIds.has(x.id) && x.openedTs >= o.placedAt - 10_000);
+    return fits.length === 1 ? fits[0]!.id : undefined;
   }
 
   private scheduleLink(t: Tracked): void {
     if (this.tryLink(t)) return;
     t.linkTimer = setTimeout(() => {
-      if (!t.order.publicId) this.d.logger.info({ order: t.order.id }, 'could not link order to L3; showing estimated position');
+      if (t.order.publicId || this.tryLink(t)) return;
+      const o = t.order;
+      const level = this.book.level(o.side, o.price);
+      this.d.logger.info(
+        {
+          order: o.id,
+          side: o.side,
+          price: o.price.toString(),
+          size: o.size.toString(),
+          levelOrders: level?.orders.map((x) => ({ size: x.size.toString(), openedTs: x.openedTs })) ?? [],
+          placedAt: o.placedAt,
+          recentOpensAtPrice: this.recentOpens.filter(({ u }) => u.price !== undefined && new Decimal(u.price).eq(o.price)).map(({ u }) => u.delta_size),
+        },
+        'could not link order to L3; showing estimated position',
+      );
     }, 3000);
     t.linkTimer.unref();
   }

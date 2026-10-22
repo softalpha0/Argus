@@ -85,6 +85,18 @@ describe('LiveVenue', () => {
     expect(await venue.audit()).toMatchObject({ orders: [{ clientOrderId: 'argus-t-1', builder: { Code: 'argus', FeeBps: 2 } }] });
   }, 10_000);
 
+  it('links through the book when the open event was missed', async () => {
+    const { venue, behaviour, ev, book } = setup();
+    // Our order lands in the book before we are tracking opens (e.g. event arrived late).
+    behaviour.onCreate = (b) => ev({ c: b.client_order_id, x: 'NEW', i: 55 });
+    const o = await venue.place({ side: 'buy', price: D('100'), size: D('0.003'), clientId: 'bk1' });
+    expect(venue.queuePosition(o).estimating).toBe(true);
+    book.apply({ type: 'l3_update', symbol: 'BTC-USD', action: 'open', order_id: 'pubB', side: 'buy', price: '100', delta_size: '0.003', remaining_size: '0.003', sequence: 99, timestamp: Date.now() });
+    const q = venue.queuePosition(o);
+    expect(o.publicId).toBe('pubB');
+    expect(q).toMatchObject({ place: 2, estimating: false });
+  });
+
   it('turns a post-only cancel before NEW into PostOnlyRejected', async () => {
     const { venue, behaviour, ev } = setup();
     behaviour.onCreate = (b) => ev({ c: b.client_order_id, x: 'EXPIRED', X: 'EXPIRED', cr: 'post only would cross' });

@@ -26,7 +26,7 @@ export interface StrategyInput {
   now: number;
   lastRepriceAt: number | null;
   /** `crossed`: the opposite side now rests at or through our price (paper only; live can't be crossed). */
-  working: { price: Decimal; crossed?: boolean } | null;
+  working: { price: Decimal; crossed?: boolean; sizeAhead?: Decimal } | null;
   /** Seconds to fill `remaining` at `price`; `asWorking` uses the working order's real queue. */
   estimate(price: Decimal, asWorking: boolean): number;
 }
@@ -136,7 +136,10 @@ export function decide(inp: StrategyInput): Decision {
   // At the best price but the queue is too slow: improve if we can.
   const c = candidates(inp);
   const eta = inp.estimate(w, true);
-  if (eta > 2 * inp.timeLeftSec && c.improve && better(side, c.improve, w) && within(side, c.improve, guard)) {
+  // Improving only helps if someone is ahead of us. When we are alone at the best price
+  // (live: our own order *is* the best bid), stepping up would just outbid ourselves.
+  const someoneAhead = inp.working.sizeAhead === undefined || inp.working.sizeAhead.gt(0);
+  if (someoneAhead && eta > 2 * inp.timeLeftSec && c.improve && better(side, c.improve, w) && within(side, c.improve, guard)) {
     return { type: 'replace', price: c.improve, reason: `queue too slow (${fmt(eta)}), moved up one tick` };
   }
   return { type: 'hold', reason: `at best ${sideWord}` };
