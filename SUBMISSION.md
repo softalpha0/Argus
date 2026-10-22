@@ -23,7 +23,7 @@ On Strike, market orders pay 0.05% and maker orders earn a 0.005% rebate, yet mo
 - **L3 websocket and snapshot:** full order-by-order book with strict sequence checks; queue position and fill rate. A 10-minute mainnet soak applied 114,483 updates with 0 gaps and matched 9 of 9 fresh snapshots order by order.
 - **Builder Connect:** one signature from Phantom or a Cardano wallet creates a trade-only API wallet.
 - **Builder Codes:** `X-Builder-Fee-Bps: 2` on every order; reports list each order as Strike reports it, with its Builder code and fee.
-- **Orders API and user websocket:** post-only orders, atomic replace, cancel, market fallback; real fills, fees, rebates and the maker flag.
+- **Orders API and user websocket:** post-only orders, cancel-then-place reprices (Strike's replace endpoint drops the builder fee), market fallback; real fills, fees, builder fee per fill and the maker flag.
 - **Trade stream:** fairness checks; L3 `trade_id` equals the tape's trade ID.
 - **Builder deposit and withdraw:** fund and withdraw from inside the app; Strike fixes the destination and recipient.
 
@@ -61,16 +61,19 @@ Screenshots: `docs/screenshots/` (landing, trade, execution, report, stats, docs
 
 ## Demo video script (under 3 minutes)
 
+Two Lace accounts on Preprod: the **builder** account owns `Argus` (Strike won't let it trade through its own code), and a **trader** account is connected to Argus with about $150+ on Strike. Open the site a minute before recording so the free Render plan is awake, and do one paper run so Stats isn't empty. Start the live run, then cut the waiting in editing.
+
 | Time | Show | Say |
 |---|---|---|
-| 0:00–0:20 | Landing page, fee card | On Strike, takers pay 0.05% and makers get paid 0.005%. Most people pay. |
-| 0:20–0:35 | Landing queue card, then Docs → Paper mode | Strike publishes every order in queue order. Argus reads it to decide where to wait. |
-| 0:35–0:55 | Connect wallet → Lace, sign | One signature. Argus can trade but can never withdraw. |
-| 0:55–1:40 | Trade → Live buy → execution view | Argus picks a spot, shows "#1 in line", moves when outbid, and only ever posts as maker. |
-| 1:40–2:10 | Report: summary, 8 steps, orders table | Every number, step by step, against a market order at the start. Here is the order on Strike with the Argus builder code. |
-| 2:10–2:30 | Paper mode run and Stats | Anyone can try it with no wallet, on the real queue. |
-| 2:30–2:50 | Deposit and withdraw window | Fund and withdraw without leaving Argus, back to your own wallet only. |
-| 2:50–3:00 | Landing | More maker volume and builder fees for Strike. Next: a Maker Vault and every L3 market. |
+| 0:00–0:15 | Landing page | Market orders on Strike pay a 0.05% taker fee. Maker orders pay nothing, and on mainnet they get paid. Most people still click market. Argus fixes that. |
+| 0:15–0:35 | Scroll: live book stats, queue card, how it works | Strike publishes its L3 book: every order, in queue order. Argus rebuilds it live, so it knows how much is ahead of you and how fast the line moves. |
+| 0:35–0:50 | Connect wallet → Lace (trader account) → sign | One signature through Strike's Builder Connect. Argus gets a trade-only key. It can't withdraw; withdrawals always need my own wallet. |
+| 0:50–1:05 | Trade: buy 0.0015 BTC, 5 min, balanced, market fallback → Start | I give it a size, a deadline and a slippage limit. |
+| 1:05–1:40 | Execution view: ladder, "#1 in line", queue meter, events (cut the wait) | It posts post-only at the best bid, shows my place in line, and moves when it's outbid, never past my limit. If time runs out, it finishes with a market order. |
+| 1:40–2:15 | Report: summary, savings breakdown, Strike orders table, builder fee column | Every number, step by step, against a market order at the start. These are my orders as Strike reports them, and this is the builder fee Strike charged on each fill: 2 bps. |
+| 2:15–2:30 | Switch Lace to the builder account → Strike testnet builder dashboard | On the builder side, Strike shows the volume and fees earned through the Argus code. |
+| 2:30–2:45 | Funds → Deposit / Withdraw window; then Paper mode and Stats | Deposit and withdraw without leaving Argus. And anyone can try it in paper mode on the real queue, no wallet. |
+| 2:45–3:00 | Landing | More maker liquidity and builder fees for Strike, and better prices for traders. Next: every L3 market and a maker vault. |
 
 ## Post on X
 
