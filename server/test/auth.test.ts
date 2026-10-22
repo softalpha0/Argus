@@ -138,3 +138,25 @@ describe('API wallet expiry', async () => {
     expect(toMs('')).toBeUndefined();
   });
 });
+
+describe('Builder Connect errors', async () => {
+  const { Accounts } = await import('../src/users/Accounts.js');
+  const { loadConfig } = await import('../src/config.js');
+  const pino = (await import('pino')).default;
+  it("explains Strike's refusal to connect a builder's own account", async () => {
+    const dir = tmp();
+    const config = loadConfig({ STRIKE_ENV: 'testnet', BUILDER_CODE: 'Argus', ARGUS_MASTER_KEY: 'ab'.repeat(32), DATA_DIR: dir });
+    // StrikeRest captures fetch when it is built, so stub it first.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ error: 'cannot connect an account to its own builder code' }), { status: 400 })) as typeof fetch;
+    const accounts = new Accounts(config, pino({ level: 'silent' }));
+    try {
+      const addr = 'addr_test1vpc4nf0l48mdf5spd2fd9zzanafdckr8qyf86057vpa87kcujc933';
+      await expect(accounts.start(addr, 'cardano')).rejects.toThrow(/owns the builder code "Argus".*different wallet/);
+    } finally {
+      globalThis.fetch = realFetch;
+      accounts.stop();
+    }
+  });
+});

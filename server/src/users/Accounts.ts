@@ -185,6 +185,12 @@ export class Accounts {
   }
 
   private wrap(err: unknown, prefix: string): ConnectError {
+    if (err instanceof StrikeError && /own builder code/i.test(err.message)) {
+      return new ConnectError(
+        `This wallet's Strike account owns the builder code "${this.config.builderCode}", and Strike does not let a builder trade through its own code. Connect with a different wallet or account.`,
+        400,
+      );
+    }
     if (err instanceof StrikeError) return new ConnectError(`${prefix}: ${err.message}`, err.status >= 500 || err.status === 0 ? 502 : 400);
     return new ConnectError(`${prefix}: ${(err as Error).message}`, 502);
   }
