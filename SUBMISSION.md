@@ -43,11 +43,15 @@ Live results on Strike testnet, Oct 22, 2026, through builder code `Argus` with 
 
 Strike reported a $0 maker commission on testnet, so the saving here comes from resting inside the spread rather than the rebate; on mainnet the 0.005% rebate adds to it.
 
+Strike's own builder dashboard (testnet.strikefinance.org/builder-codes), Oct 22, 2026: builder code **Argus · Active · 10 bps max · Total Volume $228.30 · Earned Rewards $0.04**. That matches Argus's orders exactly: order 243142756 (0.0013 BTC maker fill, $106.12) plus a 0.0015 BTC deadline market order ($122.18), each paying the 2 bps builder fee rounded down to the cent ($0.02 + $0.02).
+
+One early run filled on an order that had been repriced with `POST /v2/order/replace`. Strike's builder reference notes that endpoint ignores the builder-fee header, and that fill did not count toward the code. Argus now reprices by cancel then place, so every order carries the fee.
+
 Order records from Strike:
 
 | Network | Order ID | Builder | Status |
 |---|---|---|---|
-| Testnet | **TODO** from the report's "Orders as Strike reports them" table | Argus · 2 bps | |
+| Testnet | 243142756 | Argus · 2 bps (in the builder dashboard's volume) | filled as maker |
 | Mainnet | **TODO** (optional, needs about $5) | argus · 2 bps | |
 
 Screenshots: `docs/screenshots/` (landing, trade, execution, report, stats, docs).
