@@ -12,6 +12,8 @@ export interface StoredUser {
   publicKey: string;
   feeShareBps: number;
   createdAt: number;
+  /** When Strike expires this API wallet (Unix ms), if Strike said. */
+  expiresAt?: number;
   /** AES-256-GCM over the 32-byte seed, all hex. */
   iv: string;
   tag: string;

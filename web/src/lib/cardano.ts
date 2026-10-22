@@ -54,6 +54,11 @@ export function listCardanoWallets(): CardanoWalletInfo[] {
 const toHex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 const fromHex = (hex: string) => new Uint8Array(hex.match(/../g)!.map((h) => parseInt(h, 16)));
 
+/** bech32 address to raw bytes (hex), as CIP-30 signData expects. */
+export function bech32ToHex(address: string): string {
+  return toHex(new Uint8Array(bech32.fromWords(bech32.decode(address, 1000).words)));
+}
+
 /** Raw address bytes (hex) to bech32: addr1… on mainnet (network id 1), addr_test1… otherwise. */
 export function addressToBech32(hex: string): string {
   const bytes = fromHex(hex);
@@ -99,10 +104,11 @@ export async function connectCardano(walletId: string): Promise<CardanoSession> 
   const api = await w.enable();
   const networkId = await api.getNetworkId();
   const used = await api.getUsedAddresses();
-  const addressHex = used[0] ?? (await api.getChangeAddress());
-  if (!addressHex) throw new Error('Your Cardano wallet did not share an address');
-  // Some wallets return the address already in bech32.
-  const address = addressHex.startsWith('addr') ? addressHex : addressToBech32(addressHex);
+  const raw = used[0] ?? (await api.getChangeAddress());
+  if (!raw) throw new Error('Your Cardano wallet did not share an address');
+  // Some wallets return the address already in bech32; signData wants hex bytes.
+  const address = raw.startsWith('addr') ? raw : addressToBech32(raw);
+  const addressHex = raw.startsWith('addr') ? bech32ToHex(raw) : raw;
   rememberCardanoWallet(walletId);
   return {
     walletId,

@@ -26,6 +26,7 @@ export interface Me {
   apiWalletPublicKey: string;
   feeShareBps: number;
   connectedAt: number;
+  keyExpiresAt: number | null;
   balances: { asset: string; walletBalance: string; availableBalance: string }[] | null;
   balanceError: string | null;
 }

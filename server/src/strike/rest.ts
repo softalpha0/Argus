@@ -134,8 +134,9 @@ export class StrikeRest {
       /* non-JSON body */
     }
     if (!res.ok) {
-      const j = json as { error?: string; msg?: string } | undefined;
-      throw new StrikeError(res.status, j?.error || j?.msg || text.slice(0, 200) || `HTTP ${res.status}`, json);
+      const j = json as { error?: string; msg?: string; minimum_usd?: number } | undefined;
+      const base = j?.error || j?.msg || text.slice(0, 200) || `HTTP ${res.status}`;
+      throw new StrikeError(res.status, j?.minimum_usd ? `${base} (minimum $${j.minimum_usd})` : base, json);
     }
     return json as T;
   }
@@ -145,8 +146,8 @@ export class StrikeRest {
     return this.request<{ nonce: string; message_to_sign: string }>('POST', '/auth/builder/request-signature', b, {}, false);
   }
 
-  verifySignature(b: { address: string; chain: WalletChain; nonce: string; wallet_signature: string }) {
-    return this.request<{ account_id: string; builder_code: string; fee_share_bps: number; api_wallet_id: string | number; api_wallet_public_key: string; [k: string]: unknown }>(
+  verifySignature(b: { nonce: string; wallet_signature: string }) {
+    return this.request<{ account_id: string; builder_code: string; fee_share_bps: number; api_wallet_id: string | number; api_wallet_public_key: string; api_wallet_expired_at?: number | string; [k: string]: unknown }>(
       'POST',
       '/auth/builder/verify-signature',
       b,

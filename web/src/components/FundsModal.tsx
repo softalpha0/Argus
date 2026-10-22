@@ -118,7 +118,8 @@ export default function FundsModal({ tab: initial, network, onClose }: Props) {
         signature = await w.signHex(wq.message_to_sign);
         if (wq.tx_cbor) {
           setBusy('Approve the withdrawal transaction…');
-          signedTxCbor = assembleSignedTx(wq.tx_cbor, await w.signTx(wq.tx_cbor));
+          // Strike's reference: send signTx's result as is; Strike assembles and submits it.
+          signedTxCbor = await w.signTx(wq.tx_cbor);
         }
       } else {
         const phantom = getPhantom();

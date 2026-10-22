@@ -30,6 +30,18 @@ export function checkAddress(chain: WalletChain, address: string, env: 'mainnet'
   return null;
 }
 
+/** Strike's api_wallet_expired_at as Unix ms (accepts seconds, ms or an ISO string). */
+export function toMs(v: unknown): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v < 1e12 ? v * 1000 : v;
+  if (typeof v === 'string' && v) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n < 1e12 ? n * 1000 : n;
+    const t = Date.parse(v);
+    return Number.isFinite(t) ? t : undefined;
+  }
+  return undefined;
+}
+
 export class ConnectError extends Error {
   constructor(message: string, readonly status = 400) {
     super(message);
@@ -94,7 +106,8 @@ export class Accounts {
     if (p.chain === 'cardano' && !CARDANO_SIGNATURE.test(signature)) throw new ConnectError('The Cardano signature is not in the expected {coseSign1}:{coseKey} format');
     let res;
     try {
-      res = await this.rest.verifySignature({ address, chain: p.chain, nonce, wallet_signature: signature });
+      // The challenge already carries address and chain; send only what Strike's reference sends.
+      res = await this.rest.verifySignature({ nonce, wallet_signature: signature });
     } catch (err) {
       throw this.wrap(err, 'Strike did not accept the signature');
     }
@@ -113,6 +126,7 @@ export class Accounts {
         publicKey: p.key.publicKey,
         feeShareBps: Number(res.fee_share_bps ?? this.config.builderMaxFeeBps),
         createdAt: Date.now(),
+        expiresAt: toMs(res.api_wallet_expired_at),
       },
       p.key.secretKey,
     );
@@ -127,6 +141,8 @@ export class Accounts {
 
   /** Signed REST client for a connected user. */
   restFor(address: string): StrikeRest {
+    const u = this.keys?.get(address);
+    if (u?.expiresAt && u.expiresAt <= Date.now()) throw new ConnectError("Argus's trading key for your account has expired. Disconnect and connect your wallet again.", 401);
     const key = this.requireLive().unlock(address);
     if (!key) throw new ConnectError('Connect your wallet first', 401);
     return this.rest.withKey(key);
@@ -155,7 +171,7 @@ export class Accounts {
     } catch (err) {
       balanceError = (err as Error).message;
     }
-    return { address, chain: u.chain ?? 'solana', network: this.config.env, accountId: u.accountId, apiWalletPublicKey: u.publicKey, feeShareBps: u.feeShareBps, connectedAt: u.createdAt, balances, balanceError };
+    return { address, chain: u.chain ?? 'solana', network: this.config.env, accountId: u.accountId, apiWalletPublicKey: u.publicKey, feeShareBps: u.feeShareBps, connectedAt: u.createdAt, keyExpiresAt: u.expiresAt ?? null, balances, balanceError };
   }
 
   stop(): void {

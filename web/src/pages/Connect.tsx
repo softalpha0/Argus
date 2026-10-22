@@ -43,6 +43,12 @@ export default function Connect({ liveConfigured, reason }: { liveConfigured: bo
         <dd>{me.network}</dd>
         <dt className="text-neutral-500">Strike account</dt>
         <dd className="truncate">{me.accountId}</dd>
+        {me.keyExpiresAt && (
+          <>
+            <dt className="text-neutral-500">Trading key expires</dt>
+            <dd className={me.keyExpiresAt < Date.now() + 3 * 86_400_000 ? 'text-amber-400' : ''}>{new Date(me.keyExpiresAt).toLocaleDateString()}</dd>
+          </>
+        )}
         <dt className="text-neutral-500">Max fee approved</dt>
         <dd>{me.feeShareBps} bps</dd>
         <dt className="text-neutral-500">Available</dt>

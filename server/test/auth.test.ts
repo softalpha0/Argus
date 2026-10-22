@@ -127,3 +127,14 @@ describe('deposit amounts', async () => {
     expect(() => toSmallestUnit('1.0000001', 6)).toThrow(/decimal places/);
   });
 });
+
+describe('API wallet expiry', async () => {
+  const { toMs } = await import('../src/users/Accounts.js');
+  it('reads seconds, milliseconds and ISO dates', () => {
+    expect(toMs(1_800_000_000)).toBe(1_800_000_000_000);
+    expect(toMs(1_800_000_000_000)).toBe(1_800_000_000_000);
+    expect(toMs('2027-01-01T00:00:00Z')).toBe(Date.parse('2027-01-01T00:00:00Z'));
+    expect(toMs(undefined)).toBeUndefined();
+    expect(toMs('')).toBeUndefined();
+  });
+});
