@@ -1,18 +1,33 @@
 import type { Logger } from 'pino';
 import type { Config } from '../config.js';
-import { generateApiWallet, StrikeRest, StrikeError, type ApiWalletKey } from '../strike/rest.js';
+import { generateApiWallet, StrikeRest, StrikeError, type ApiWalletKey, type WalletChain } from '../strike/rest.js';
 import { UserStream } from '../strike/userStream.js';
 import { KeyStore } from './KeyStore.js';
 import { Sessions } from './Sessions.js';
 
 interface Pending {
   address: string;
+  chain: WalletChain;
   key: ApiWalletKey;
   expiresAt: number;
 }
 
 const PENDING_TTL_MS = 5 * 60_000;
 const SOLANA_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+// Bech32 payment addresses: addr1… on mainnet, addr_test1… on testnets.
+const CARDANO_ADDRESS = /^(addr|addr_test)1[02-9ac-hj-np-z]{50,120}$/;
+// CIP-30 signData result, joined as {coseSign1Hex}:{coseKeyHex}.
+const CARDANO_SIGNATURE = /^[0-9a-fA-F]+:[0-9a-fA-F]+$/;
+
+/** Checks an address for the given chain and network; returns an error message or null. */
+export function checkAddress(chain: WalletChain, address: string, env: 'mainnet' | 'testnet'): string | null {
+  if (chain === 'solana') return SOLANA_ADDRESS.test(address) ? null : 'That does not look like a Solana wallet address';
+  if (!CARDANO_ADDRESS.test(address)) return 'That does not look like a Cardano payment address (addr1… or addr_test1…)';
+  const isTest = address.startsWith('addr_test1');
+  if (env === 'mainnet' && isTest) return 'Your Cardano wallet is on a testnet. Switch it to Mainnet, or run Argus with STRIKE_ENV=testnet.';
+  if (env === 'testnet' && !isTest) return 'Your Cardano wallet is on Mainnet. Switch it to the testnet Strike uses, or run Argus with STRIKE_ENV=mainnet.';
+  return null;
+}
 
 export class ConnectError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -40,9 +55,13 @@ export class Accounts {
   }
 
   /** Step 1: make a fresh API wallet and ask Strike for the consent message. */
-  async start(address: unknown): Promise<{ nonce: string; message_to_sign: string }> {
+  async start(address: unknown, chainIn: unknown = 'solana'): Promise<{ nonce: string; message_to_sign: string }> {
     this.requireLive();
-    if (typeof address !== 'string' || !SOLANA_ADDRESS.test(address)) throw new ConnectError('That does not look like a Solana wallet address');
+    const chain = chainIn ?? 'solana';
+    if (chain !== 'solana' && chain !== 'cardano') throw new ConnectError('chain must be "solana" or "cardano"');
+    if (typeof address !== 'string') throw new ConnectError('Missing wallet address');
+    const bad = checkAddress(chain, address, this.config.env);
+    if (bad) throw new ConnectError(bad);
     this.prunePending();
     if (this.pending.size > 1000) throw new ConnectError('Too many sign-ins in progress, try again in a minute', 429);
     const key = await generateApiWallet();
@@ -50,7 +69,7 @@ export class Accounts {
     try {
       res = await this.rest.requestSignature({
         address,
-        chain: 'solana',
+        chain,
         code: this.config.builderCode!,
         fee_share_bps: this.config.builderMaxFeeBps,
         public_key: key.publicKey,
@@ -58,7 +77,7 @@ export class Accounts {
     } catch (err) {
       throw this.wrap(err, 'Strike could not start the connection');
     }
-    this.pending.set(res.nonce, { address, key, expiresAt: Date.now() + PENDING_TTL_MS });
+    this.pending.set(res.nonce, { address, chain, key, expiresAt: Date.now() + PENDING_TTL_MS });
     return { nonce: res.nonce, message_to_sign: res.message_to_sign };
   }
 
@@ -69,9 +88,10 @@ export class Accounts {
     const p = this.pending.get(nonce);
     if (!p || p.expiresAt < Date.now() || p.address !== address) throw new ConnectError('This sign-in expired. Please try again.');
     this.pending.delete(nonce);
+    if (p.chain === 'cardano' && !CARDANO_SIGNATURE.test(signature)) throw new ConnectError('The Cardano signature is not in the expected {coseSign1}:{coseKey} format');
     let res;
     try {
-      res = await this.rest.verifySignature({ address, chain: 'solana', nonce, wallet_signature: signature });
+      res = await this.rest.verifySignature({ address, chain: p.chain, nonce, wallet_signature: signature });
     } catch (err) {
       throw this.wrap(err, 'Strike did not accept the signature');
     }
@@ -84,6 +104,7 @@ export class Accounts {
     keys.save(
       {
         address,
+        chain: p.chain,
         accountId: res.account_id,
         apiWalletId: String(res.api_wallet_id),
         publicKey: p.key.publicKey,
@@ -131,7 +152,7 @@ export class Accounts {
     } catch (err) {
       balanceError = (err as Error).message;
     }
-    return { address, accountId: u.accountId, apiWalletPublicKey: u.publicKey, feeShareBps: u.feeShareBps, connectedAt: u.createdAt, balances, balanceError };
+    return { address, chain: u.chain ?? 'solana', network: this.config.env, accountId: u.accountId, apiWalletPublicKey: u.publicKey, feeShareBps: u.feeShareBps, connectedAt: u.createdAt, balances, balanceError };
   }
 
   stop(): void {

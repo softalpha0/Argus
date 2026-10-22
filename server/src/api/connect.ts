@@ -15,8 +15,8 @@ export function registerConnect(app: FastifyInstance, config: Config, accounts: 
 
   app.post('/api/connect/start', async (req, reply) => {
     try {
-      const b = (req.body ?? {}) as { address?: unknown };
-      return await accounts.start(b.address);
+      const b = (req.body ?? {}) as { address?: unknown; chain?: unknown };
+      return await accounts.start(b.address, b.chain);
     } catch (err) {
       return fail(reply, err);
     }

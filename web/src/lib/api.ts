@@ -20,6 +20,8 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
 
 export interface Me {
   address: string;
+  chain: 'solana' | 'cardano';
+  network: 'mainnet' | 'testnet';
   accountId: string;
   apiWalletPublicKey: string;
   feeShareBps: number;

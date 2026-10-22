@@ -96,3 +96,20 @@ describe('user stream helpers', () => {
     expect(logonMessage(1700000000000, 'abc')).toBe('session.logon:1700000000000:abc');
   });
 });
+
+describe('wallet address checks', async () => {
+  const { checkAddress } = await import('../src/users/Accounts.js');
+  const main = 'addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x';
+  const test = 'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae';
+  it('accepts Solana and Cardano addresses on the right network', () => {
+    expect(checkAddress('solana', '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM', 'mainnet')).toBeNull();
+    expect(checkAddress('cardano', main, 'mainnet')).toBeNull();
+    expect(checkAddress('cardano', test, 'testnet')).toBeNull();
+  });
+  it('explains network mismatches and bad addresses', () => {
+    expect(checkAddress('cardano', test, 'mainnet')).toMatch(/testnet/);
+    expect(checkAddress('cardano', main, 'testnet')).toMatch(/Mainnet/);
+    expect(checkAddress('cardano', '0xabc', 'mainnet')).toMatch(/Cardano payment address/);
+    expect(checkAddress('solana', main, 'mainnet')).toMatch(/Solana/);
+  });
+});

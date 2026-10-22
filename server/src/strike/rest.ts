@@ -3,6 +3,8 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { v4 as uuidv4 } from 'uuid';
 
+export type WalletChain = 'solana' | 'cardano';
+
 export class StrikeError extends Error {
   constructor(readonly status: number, message: string, readonly body?: unknown) {
     super(message);
@@ -124,11 +126,11 @@ export class StrikeRest {
   }
 
   // Builder Connect (public)
-  requestSignature(b: { address: string; chain: 'solana'; code: string; fee_share_bps: number; public_key: string }) {
+  requestSignature(b: { address: string; chain: WalletChain; code: string; fee_share_bps: number; public_key: string }) {
     return this.request<{ nonce: string; message_to_sign: string }>('POST', '/auth/builder/request-signature', b, {}, false);
   }
 
-  verifySignature(b: { address: string; chain: 'solana'; nonce: string; wallet_signature: string }) {
+  verifySignature(b: { address: string; chain: WalletChain; nonce: string; wallet_signature: string }) {
     return this.request<{ account_id: string; builder_code: string; fee_share_bps: number; api_wallet_id: string | number; api_wallet_public_key: string; [k: string]: unknown }>(
       'POST',
       '/auth/builder/verify-signature',

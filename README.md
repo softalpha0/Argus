@@ -20,7 +20,7 @@ Strike publishes something most exchanges don't: an **L3 feed** that shows every
 
 ## How it works
 
-1. **Connect once.** Sign one message in Phantom. Argus gets a trading-only key through Strike's Builder Connect. It can place and cancel orders, but it **can't withdraw**. Withdrawals always need your own wallet signature and only go to your own wallet.
+1. **Connect once.** Sign one message in Phantom (Solana) or a Cardano wallet such as Lace or Eternl. Argus gets a trading-only key through Strike's Builder Connect. It can place and cancel orders, but it **can't withdraw**. Withdrawals always need your own wallet signature and only go to your own wallet.
 2. **Say what you want.** For example: buy 0.002 BTC, finish within 5 minutes, never pay more than 0.10% above the current price.
 3. **Argus picks a spot.** It reads the order book order by order and either joins the best bid or improves it by one tick to jump the line, based on how long the queue is and how fast orders are filling.
 4. **It only ever posts as maker.** Orders are post-only, so they can't accidentally take liquidity.
@@ -95,7 +95,7 @@ Each fill gets a ✓ or ✗ in your report.
 |---|---|
 | L3 websocket + snapshot | Rebuilds the BTC-USD book order by order to find queue position and fill speed |
 | Trade stream | Measures fill rates and checks fills against the public tape |
-| Builder Connect | One-signature onboarding with a trade-only API wallet |
+| Builder Connect | One-signature onboarding with a trade-only API wallet, from Phantom (Solana) or any CIP-30 Cardano wallet |
 | Builder Codes (`X-Builder-Fee-Bps`) | Argus's fee on every order |
 | Orders API (`post_only`, replace, cancel, market with `slippage`) | Places and manages maker orders |
 | User websocket | Real fills, fees, rebates and maker flag for each order |
@@ -116,6 +116,10 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. Paper mode works with no extra setup. Live mode needs a builder code and a master key in `.env`.
+
+### Testing live mode for free on testnet
+
+Strike's testnet takes Cardano test ADA. Get some from the [Cardano faucet](https://docs.cardano.org/cardano-testnets/tools/faucet), deposit it on testnet.strikefinance.org from a Cardano wallet on the same testnet, register your builder code there, then set `STRIKE_ENV=testnet` and connect that Cardano wallet in Argus. The testnet book is thin and its minimum order is $100, so orders mostly rest unfilled, but each one still shows your builder code and fee on Strike.
 
 | Script | What it does |
 |---|---|
@@ -172,14 +176,14 @@ Open `http://localhost:5173`. Paper mode works with no extra setup. Live mode ne
 - **BTC-USD only for now.** Strike's L3 feed currently covers one market.
 - **Maker orders aren't guaranteed to fill.** The deadline fallback handles this.
 - **Waiting has a cost.** Price can move while your order rests. Reports show this honestly.
-- **Solana wallets first.** Ethereum and Cardano wallets work with Builder Connect too and are next.
+- **Solana and Cardano wallets.** Ethereum wallets work with Builder Connect too and are next.
 - L3 order IDs are public IDs. Argus links your order to its L3 entry by side, price, size and time.
 
 ---
 
 ## What's next
 
-1. Ethereum and Cardano wallet support.
+1. Ethereum wallet support.
 2. More markets as Strike enables L3 for them.
 3. **Maker Vault:** a Strike vault, run by Argus, that keeps maker orders on the book and shares the rebates and spread with depositors.
 4. A public API so other bots and apps can route orders through Argus.

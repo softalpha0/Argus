@@ -5,6 +5,8 @@ import type { ApiWalletKey } from '../strike/rest.js';
 
 export interface StoredUser {
   address: string;
+  /** Older records predate Cardano support and are Solana. */
+  chain?: 'solana' | 'cardano';
   accountId: string;
   apiWalletId: string;
   publicKey: string;
