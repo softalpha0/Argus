@@ -32,23 +32,28 @@ function SavingsChart({ series }: { series: S['series'] }) {
   const pts = series.slice(-40);
   const vals = pts.map((p) => Number(p.savedUsd));
   const max = Math.max(...vals.map(Math.abs), 0.0001);
-  const W = 600, H = 160, pad = 24, bw = (W - pad * 2) / pts.length;
-  const y0 = H / 2;
+  // Fixed drawing height; bars stretch to the width. Labels live outside the SVG so they never distort.
+  const W = 100, H = 100, gap = 0.6, bw = W / pts.length;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-full" role="img" aria-label="Savings per execution">
-      <line x1={pad} x2={W - pad} y1={y0} y2={y0} stroke="currentColor" className="text-neutral-700" />
-      {pts.map((p, i) => {
-        const v = Number(p.savedUsd);
-        const h = (Math.abs(v) / max) * (H / 2 - pad);
-        return (
-          <rect key={i} x={pad + i * bw + 1} width={Math.max(bw - 2, 1)} y={v >= 0 ? y0 - h : y0} height={Math.max(h, 1)} fill={v >= 0 ? '#34d399' : '#fb7185'} opacity={p.mode === 'live' ? 1 : 0.6}>
-            <title>{`${new Date(p.ts).toLocaleString()} · ${p.mode} · ${usd(v)}`}</title>
-          </rect>
-        );
-      })}
-      <text x={pad} y={14} fontSize="11" fill="currentColor" className="text-neutral-500">+{usd(max)}</text>
-      <text x={pad} y={H - 4} fontSize="11" fill="currentColor" className="text-neutral-500">−{usd(max)}</text>
-    </svg>
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+      <div className="flex h-40 flex-col justify-between py-0.5 text-right font-mono text-[11px] text-neutral-500">
+        <span>+{usd(max)}</span>
+        <span>$0</span>
+        <span>−{usd(max)}</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-40 w-full" role="img" aria-label="Savings per execution">
+        <line x1={0} x2={W} y1={H / 2} y2={H / 2} stroke="#404040" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+        {pts.map((p, i) => {
+          const v = Number(p.savedUsd);
+          const h = (Math.abs(v) / max) * (H / 2 - 2);
+          return (
+            <rect key={i} x={i * bw + gap / 2} width={Math.max(bw - gap, 0.4)} y={v >= 0 ? H / 2 - h : H / 2} height={Math.max(h, 0.6)} fill={v >= 0 ? '#34d399' : '#fb7185'} opacity={p.mode === 'live' ? 1 : 0.6}>
+              <title>{`${new Date(p.ts).toLocaleString()} · ${p.mode} · ${usd(v)}`}</title>
+            </rect>
+          );
+        })}
+      </svg>
+    </div>
   );
 }
 
