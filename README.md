@@ -4,7 +4,7 @@
 
 On Strike, market orders pay a 0.05% fee and maker orders earn a 0.005% rebate. Argus takes your order and works it as a maker order, using Strike's live L3 queue data to decide where to wait in line and when to move. You pay less, Strike gets more volume and deeper liquidity, and every order runs through Strike's Builder Codes.
 
-- **Live app:** https://argus-5es2.onrender.com (Strike testnet; on the free plan the first visit after a quiet spell takes about 30 seconds)
+- **Live app:** https://tradeargusio.xyz (Strike testnet; on the free plan the first visit after a quiet spell takes about 30 seconds)
 - **Demo video:** `<link>`
 - **Docs:** in the app under **Docs**, or [the source](web/src/pages/Docs.tsx)
 - Built for the Strike Finance Hackathon, October 2026.
@@ -140,15 +140,15 @@ The `/v1` API is the stable interface for programs and agents. Sign in on the si
 
 ```bash
 # While signed in (browser session cookie):
-curl -X POST https://<your-argus>/api/keys -H 'content-type: application/json' \
-  -b 'argus_session=...' -d '{"name":"my bot","maxOrderUsd":500,"dailyUsd":2000}'
+curl -X POST https://tradeargusio.xyz/api/keys -H 'content-type: application/json' \
+  -b 'argus_session_testnet=...' -d '{"name":"my bot","maxOrderUsd":500,"dailyUsd":2000}'
 # -> {"key":"argus_3f9c1a2b7d4e_...","apiKey":{...}}
 ```
 
-Then try [`examples/quickstart.mjs`](examples/quickstart.mjs), which starts an execution, follows it live and prints the receipt (Node 18+, no dependencies):
+Then try [`examples/quickstart.mjs`](examples/quickstart.mjs), which starts an execution, follows it live and prints the receipt (Node 18+, no dependencies). It uses https://tradeargusio.xyz unless you set `ARGUS_URL` to your own deployment:
 
 ```bash
-ARGUS_URL=https://<your-argus> ARGUS_KEY=argus_... node examples/quickstart.mjs --side buy --size 0.002 --deadline 120
+ARGUS_KEY=argus_... node examples/quickstart.mjs --side buy --size 0.002 --deadline 120
 ```
 
 | Endpoint | Does |

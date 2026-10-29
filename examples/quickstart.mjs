@@ -1,7 +1,8 @@
 // Places one execution through the Argus v1 API, follows it live, and prints the receipt.
 // No dependencies; Node 18 or newer.
 //
-//   ARGUS_URL=https://your-argus.example ARGUS_KEY=argus_... node examples/quickstart.mjs
+//   ARGUS_KEY=argus_... node examples/quickstart.mjs
+//   ARGUS_URL=http://localhost:8080 ARGUS_KEY=argus_... node examples/quickstart.mjs   (your own server)
 //   node examples/quickstart.mjs --side sell --size 0.002 --deadline 120 --mode paper
 //
 // Paper mode (the default) trades against the real order book without placing orders.
@@ -19,7 +20,7 @@ const { values: arg } = parseArgs({
   },
 });
 
-const base = (process.env.ARGUS_URL ?? 'http://localhost:8080').replace(/\/$/, '');
+const base = (process.env.ARGUS_URL ?? 'https://tradeargusio.xyz').replace(/\/$/, '');
 const key = process.env.ARGUS_KEY;
 if (!key) {
   console.error('Set ARGUS_KEY to an API key (create one on the Argus site while signed in).');
@@ -30,7 +31,11 @@ const headers = { authorization: `Bearer ${key}`, 'content-type': 'application/j
 async function api(method, path, body, extra = {}) {
   const res = await fetch(base + path, { method, headers: { ...headers, ...extra }, body: body && JSON.stringify(body) });
   const json = await res.json();
-  if (!res.ok) throw new Error(`${res.status} ${json.error?.type}: ${json.error?.message}`);
+  if (!res.ok) {
+    // Typed errors: branch on json.error.type in your own code.
+    console.error(`Argus said ${res.status} ${json.error?.type}: ${json.error?.message}`);
+    process.exit(1);
+  }
   return json;
 }
 
