@@ -1,13 +1,12 @@
 # Argus
 
-**Get paid to trade on Strike.**
+**The execution layer for AI trading agents. Your agent decides; Argus executes.**
 
-On Strike, market orders pay a 0.05% fee and maker orders earn a 0.005% rebate. Argus takes your order and works it as a maker order, using Strike's live L3 queue data to decide where to wait in line and when to move. You pay less, Strike gets more volume and deeper liquidity, and every order runs through Strike's Builder Codes.
+Argus turns every order an agent sends into a maker order on Strike's live L3 order book: it reads the queue order by order to decide where to wait, moves when outbid but never past the agent's limit, and finishes at the deadline if it must. Every run ends with a verifiable receipt, and every order carries Strike's Builder Code.
 
-- **Live app:** https://tradeargusio.xyz (Strike testnet; on the free plan the first visit after a quiet spell takes about 30 seconds)
-- **Demo video:** `<link>`
+- **Live app:** https://tradeargusio.xyz (public beta on Strike testnet)
+- **For developers:** https://tradeargusio.xyz/#/developers (API keys, quickstart, API reference)
 - **Docs:** in the app under **Docs**, or [the source](web/src/pages/Docs.tsx)
-- Built for the Strike Finance Hackathon, October 2026.
 
 ![Argus landing page](docs/screenshots/landing.png)
 

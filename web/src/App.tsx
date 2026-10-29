@@ -8,6 +8,7 @@ import Report from './pages/Report';
 import Stats from './pages/Stats';
 import Landing from './pages/Landing';
 import Docs from './pages/Docs';
+import Developers from './pages/Developers';
 import WalletModal from './components/WalletModal';
 import FundsModal from './components/FundsModal';
 import { useRef, useState as useLocalState } from 'react';
@@ -50,6 +51,7 @@ function Header({ env }: { env: string }) {
       </a>
       <nav className="flex items-center gap-1">
         {link('#/', 'Product', route.page === 'home')}
+        {link('#/developers', 'Developers', route.page === 'developers')}
         {link('#/trade', 'Trade', route.page === 'trade' || route.page === 'execution' || route.page === 'report')}
         {link('#/docs', 'Docs', route.page === 'docs')}
         {link('#/stats', 'Stats', route.page === 'stats')}
@@ -95,6 +97,7 @@ function Body({ config }: { config: ServerConfig }) {
   if (route.page === 'execution') return <Execution id={route.id} />;
   if (route.page === 'report') return <Report id={route.id} />;
   if (route.page === 'stats') return <Stats />;
+  if (route.page === 'developers') return <Developers />;
   if (route.page === 'docs') return <Docs section={route.section} />;
   if (route.page === 'trade') return <Trade config={config} />;
   return <Landing />;
@@ -122,8 +125,9 @@ export default function App() {
             <Body config={config} />
             <Modals env={config.env} />
             <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-ink-700 pt-6 text-sm text-neutral-500">
-              <span>Argus · built for the Strike Finance hackathon, October 2026</span>
+              <span>© 2026 Argus · Execution layer for AI trading agents · Built on Strike</span>
               <span className="flex flex-wrap gap-4">
+                <a href="#/developers" className="hover:text-neutral-200">Developers</a>
                 <a href="#/docs" className="hover:text-neutral-200">Docs</a>
                 <a href="https://github.com/softalpha0/Argus" target="_blank" rel="noreferrer" className="hover:text-neutral-200">GitHub</a>
                 <a href="https://docs.strikefinance.org" target="_blank" rel="noreferrer" className="hover:text-neutral-200">Strike docs</a>
