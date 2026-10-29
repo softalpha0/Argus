@@ -81,8 +81,8 @@ const FEATURES: [string, string][] = [
   ['Paper mode on the real book', 'Test strategies against the live queue: a paper order fills only when real trades reach it.'],
 ];
 
-const LIVE = ['Execution API with streaming and receipts', 'API keys with per-order and daily limits', 'Solana and Cardano wallets', 'Paper mode on the live order book'];
-const NEXT = ['MCP server: agents trade in plain language', 'Signed webhooks', 'Strike mainnet', 'Ethereum wallets', 'More venues behind one API'];
+const LIVE = ['Execution API with streaming and receipts', 'MCP server: agents trade in plain language', 'Signed webhooks', 'API keys with per-order and daily limits', 'Solana and Cardano wallets', 'Paper mode on the live order book'];
+const NEXT = ['Strike mainnet', 'Ethereum wallets', 'More venues behind one API'];
 
 export default function Landing() {
   const { market } = useLive();

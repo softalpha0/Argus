@@ -20,6 +20,11 @@ import { registerKeys } from './api/keys.js';
 import { makeAuth } from './api/auth.js';
 import type { ApiKeys } from './users/ApiKeys.js';
 import { registerV1 } from './api/v1.js';
+import { registerMcpHttp } from './api/mcpHttp.js';
+import { registerWebhooks } from './api/webhooks.js';
+import type { Webhooks } from './webhooks/Webhooks.js';
+import { buildReceipt, executionView, type ExecutionSnapshot } from './api/receipt.js';
+import type { Execution } from './engine/Execution.js';
 import type { Idempotency } from './api/idempotency.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +41,9 @@ export interface AppDeps {
   idempotency?: Idempotency;
   /** v1 event stream refresh; tests shorten it. */
   streamTickMs?: number;
+  /** MCP execute polling interval; tests shorten it. */
+  mcpPollMs?: number;
+  webhooks?: Webhooks;
 }
 
 export async function buildApp(config: Config, opts: AppDeps = {}): Promise<FastifyInstance> {
@@ -87,6 +95,24 @@ export async function buildApp(config: Config, opts: AppDeps = {}): Promise<Fast
         idempotency: opts.idempotency,
         streamTickMs: opts.streamTickMs,
       });
+      registerMcpHttp(app, auth.caller, { pollMs: opts.mcpPollMs });
+    }
+    if (opts.webhooks) {
+      const webhooks = opts.webhooks;
+      const manager = opts.manager;
+      const venue = { exchange: opts.exchange.id, network: config.env, symbol: config.symbol };
+      registerWebhooks(app, webhooks, auth.sessionOwner);
+      // Owners get "execution.finished" with the same view and receipt the v1 API returns.
+      const onDone = (e: Execution) => {
+        if (!e.owner) return;
+        const j = e.toJSON() as unknown as ExecutionSnapshot;
+        const meta = manager.metaOf(e.id);
+        webhooks.emit(e.owner, 'execution.finished', { execution: executionView(j, venue, meta), receipt: buildReceipt(j, venue, meta) });
+      };
+      manager.on('done', onDone);
+      app.addHook('onClose', async () => {
+        manager.off('done', onDone);
+      });
     }
   }
 
@@ -94,7 +120,7 @@ export async function buildApp(config: Config, opts: AppDeps = {}): Promise<Fast
     await app.register(fastifyStatic, { root: webDist });
     // SPA fallback for client-side routes.
     app.setNotFoundHandler((req, reply) => {
-      if (req.method === 'GET' && !req.url.startsWith('/api') && !req.url.startsWith('/v1') && !req.url.startsWith('/live')) {
+      if (req.method === 'GET' && !req.url.startsWith('/api') && !req.url.startsWith('/v1') && !req.url.startsWith('/mcp') && !req.url.startsWith('/live')) {
         return reply.sendFile('index.html');
       }
       return reply.code(404).send({ error: 'Not found' });

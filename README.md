@@ -164,6 +164,28 @@ ARGUS_KEY=argus_... node examples/quickstart.mjs --side buy --size 0.002 --deadl
 - **Receipt** (`schema: "argus.receipt.v1"`): requested parameters, `outcome` (`filled`, `partially_filled`, `not_filled`), timing, arrival mid and limit, result (filled size, average price, maker share), costs (price versus arrival, venue fees, builder fee, total), the benchmark (a market order for the filled size at arrival, with the taker fee) and the saving in USD and bps, every fill with its liquidity, fees and fairness checks, and the venue's own order records for live runs. Amounts are decimal strings in USD.
 - **Keys and limits:** a key acts for the wallet that created it and can only start, follow and stop executions; it can't deposit, withdraw, or create or change keys. Each key has a per-order limit (`maxOrderUsd`, default $500) and a daily limit (`dailyUsd`, default $2,000) on live orders, measured at the mid when the order starts. Revoking a key stops every running execution it started. A wrong or revoked key gets `401`.
 
+### AI agents over MCP
+
+Argus is also an MCP server, so Claude and other MCP-capable agents can trade from plain-language instructions. Tools: `argus_market`, `argus_quote`, `argus_execute` (paper by default; can wait up to 120 s and return the receipt), `argus_status`, `argus_receipt`, `argus_cancel`, `argus_list`. Every call runs as your API key, with its limits.
+
+```bash
+# Remote (Streamable HTTP, stateless)
+claude mcp add --transport http argus https://tradeargusio.xyz/mcp \
+  --header "Authorization: Bearer $ARGUS_KEY"
+
+# Local (stdio), after npm run build
+ARGUS_KEY=argus_... ARGUS_URL=https://tradeargusio.xyz node server/dist/mcp/stdio.js
+```
+
+### Webhooks
+
+Add an HTTPS endpoint on the Developers page (signed in; up to 5 per wallet). When an execution ends, Argus POSTs `{"id":"evt_...","type":"execution.finished","createdAt":...,"data":{"execution":{...},"receipt":{...}}}` with these headers:
+
+- `Argus-Signature: t=<unix seconds>,v1=<hex>`: HMAC-SHA256 of `"<t>.<raw body>"` using the endpoint's `whsec_...` secret (shown once, stored encrypted).
+- `Argus-Event-Id`: use it to ignore repeats.
+
+Non-2xx responses and timeouts (5 s) are retried after 10 s, 1 min and 5 min. Redirects aren't followed, and endpoints that resolve to private networks are refused, both when the endpoint is added and at each send.
+
 ---
 
 ## Security
@@ -191,7 +213,7 @@ ARGUS_KEY=argus_... node examples/quickstart.mjs --side buy --size 0.002 --deadl
 1. Ethereum wallets through Builder Connect.
 2. More markets as Strike enables L3 for them.
 3. **Maker Vault:** a Strike vault, run by Argus, that keeps maker orders on the book and shares the rebates and spread with depositors.
-4. A public API so other bots and apps can route orders through Argus.
+4. Strike mainnet for the execution API, and more venues behind the same API.
 
 ---
 

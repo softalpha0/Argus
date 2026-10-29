@@ -8,6 +8,7 @@ import { StrikeExchange } from './strike/StrikeExchange.js';
 import { ApiKeys } from './users/ApiKeys.js';
 import { openDocStore, scoped } from './db/DocStore.js';
 import { Idempotency } from './api/idempotency.js';
+import { Webhooks } from './webhooks/Webhooks.js';
 
 async function main() {
   const config = loadConfig();
@@ -20,10 +21,12 @@ async function main() {
   await apiKeys.init();
   const idempotency = new Idempotency(db, scoped(config.env, 'idempotency'), Date.now, (err) => logger.error({ err: err.message }, 'failed to save idempotency key'));
   await idempotency.init();
+  const webhooks = new Webhooks(db, scoped(config.env, 'webhooks'), logger.child({ mod: 'webhooks' }), { masterKeyHex: config.masterKey, allowInsecure: !config.production });
+  await webhooks.init();
   const exchange = new StrikeExchange(config, accounts, logger);
   const manager = new ExecutionManager(config, exchange, store, logger.child({ mod: 'exec' }));
   await exchange.start();
-  const app = await buildApp(config, { exchange, manager, store, accounts, apiKeys, idempotency });
+  const app = await buildApp(config, { exchange, manager, store, accounts, apiKeys, idempotency, webhooks });
 
   if (!config.liveConfigured) app.log.warn(config.liveNotConfiguredReason);
 
@@ -36,6 +39,7 @@ async function main() {
     await manager.shutdown();
     exchange.stop();
     accounts.stop();
+    webhooks.stop();
     await app.close();
     await db.close();
   };
