@@ -19,6 +19,8 @@ import { registerFunds } from './api/funds.js';
 import { registerKeys } from './api/keys.js';
 import { makeAuth } from './api/auth.js';
 import type { ApiKeys } from './users/ApiKeys.js';
+import { registerV1 } from './api/v1.js';
+import type { Idempotency } from './api/idempotency.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // Works from both src/ (tsx) and dist/ (built).
@@ -31,6 +33,9 @@ export interface AppDeps {
   store?: Store;
   accounts?: Accounts;
   apiKeys?: ApiKeys;
+  idempotency?: Idempotency;
+  /** v1 event stream refresh; tests shorten it. */
+  streamTickMs?: number;
 }
 
 export async function buildApp(config: Config, opts: AppDeps = {}): Promise<FastifyInstance> {
@@ -74,13 +79,22 @@ export async function buildApp(config: Config, opts: AppDeps = {}): Promise<Fast
     app.get('/api/market', async () => ({ ...marketView(market, config.symbol), ...market.health() }));
     registerRoutes(app, { config, manager: opts.manager, store: opts.store, ownerOf: auth.ownerOf, callerOf: auth.caller });
     registerLive(app, market, opts.manager, config.symbol, auth.ownerOf);
+    if (opts.idempotency) {
+      registerV1(app, {
+        manager: opts.manager,
+        venue: { exchange: opts.exchange.id, network: config.env, symbol: config.symbol },
+        callerOf: auth.caller,
+        idempotency: opts.idempotency,
+        streamTickMs: opts.streamTickMs,
+      });
+    }
   }
 
   if (fs.existsSync(path.join(webDist, 'index.html'))) {
     await app.register(fastifyStatic, { root: webDist });
     // SPA fallback for client-side routes.
     app.setNotFoundHandler((req, reply) => {
-      if (req.method === 'GET' && !req.url.startsWith('/api') && !req.url.startsWith('/live')) {
+      if (req.method === 'GET' && !req.url.startsWith('/api') && !req.url.startsWith('/v1') && !req.url.startsWith('/live')) {
         return reply.sendFile('index.html');
       }
       return reply.code(404).send({ error: 'Not found' });

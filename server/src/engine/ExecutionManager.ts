@@ -24,12 +24,19 @@ const usd = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigits
 export interface CreateOptions {
   /** The API key the request was authenticated with, if any; its limits apply to live orders. */
   apiKey?: ApiKeyRecord;
+  /** The caller's own reference for this order, returned on every view and receipt. */
+  clientRef?: string;
+}
+
+export interface ExecutionMeta {
+  apiKeyId?: string;
+  clientRef?: string;
 }
 
 export class ExecutionManager extends EventEmitter<ManagerEvents> {
   private active = new Map<string, Execution>();
   private paperVenues = new Map<string, PaperVenue>();
-  private apiKeyOf = new Map<string, string>();
+  private meta = new Map<string, ExecutionMeta>();
 
   constructor(
     private readonly config: Config,
@@ -100,7 +107,10 @@ export class ExecutionManager extends EventEmitter<ManagerEvents> {
       throw new UserError((err as Error).message);
     }
     this.active.set(id, exec);
-    if (opts.apiKey) this.apiKeyOf.set(id, opts.apiKey.id);
+    const meta: ExecutionMeta = {};
+    if (opts.apiKey) meta.apiKeyId = opts.apiKey.id;
+    if (opts.clientRef) meta.clientRef = opts.clientRef;
+    this.meta.set(id, meta);
     this.logger.info({ exec: id, mode: params.mode, side: params.side, size: params.size.toString(), apiKey: opts.apiKey?.id }, 'execution started');
     return exec;
   }
@@ -129,7 +139,7 @@ export class ExecutionManager extends EventEmitter<ManagerEvents> {
       if (Number.isFinite(n)) total += n;
     };
     for (const e of this.active.values()) {
-      if (this.apiKeyOf.get(e.id) !== apiKeyId) continue;
+      if (this.meta.get(e.id)?.apiKeyId !== apiKeyId) continue;
       const j = e.toJSON() as unknown as { mode: string; createdAt: number; size: string; arrivalMid: string | null };
       add(j.mode, j.createdAt, j.size, j.arrivalMid);
     }
@@ -142,21 +152,20 @@ export class ExecutionManager extends EventEmitter<ManagerEvents> {
 
   /** Stops every running execution started with this key (used when the key is revoked). */
   async cancelByApiKey(apiKeyId: string): Promise<number> {
-    const running = this.running().filter((e) => this.apiKeyOf.get(e.id) === apiKeyId);
+    const running = this.running().filter((e) => this.meta.get(e.id)?.apiKeyId === apiKeyId);
     await Promise.all(running.map((e) => e.cancel('API key revoked')));
     return running.length;
   }
 
   private onDone(e: Execution): void {
     this.paperVenues.delete(e.id);
-    const apiKeyId = this.apiKeyOf.get(e.id);
     void this.store
-      .save({ ...(e.toJSON() as unknown as StoredExecution), owner: e.owner, ...(apiKeyId ? { apiKeyId } : {}) })
+      .save({ ...(e.toJSON() as unknown as StoredExecution), owner: e.owner, ...this.meta.get(e.id) })
       .catch((err: Error) => this.logger.error({ err: err.message, exec: e.id }, 'failed to save execution'));
     this.emit('done', e);
     setTimeout(() => {
       this.active.delete(e.id);
-      this.apiKeyOf.delete(e.id);
+      this.meta.delete(e.id);
     }, KEEP_FINISHED_MS).unref();
   }
 
@@ -165,6 +174,22 @@ export class ExecutionManager extends EventEmitter<ManagerEvents> {
     if (exec) return { exec };
     const stored = this.store.get(id);
     return stored ? { stored } : {};
+  }
+
+  /** API key and client reference for a running or stored execution. */
+  metaOf(id: string): ExecutionMeta {
+    const m = this.meta.get(id);
+    if (m) return m;
+    const r = this.store.get(id);
+    return r ? { apiKeyId: r.apiKeyId, clientRef: typeof r.clientRef === 'string' ? r.clientRef : undefined } : {};
+  }
+
+  /** One owner's executions, newest first: running ones (live state) and stored ones. */
+  listFor(owner: string, limit = 50): { exec?: Execution; stored?: StoredExecution; createdAt: number }[] {
+    const out: { exec?: Execution; stored?: StoredExecution; createdAt: number }[] = [];
+    for (const e of this.active.values()) if (e.owner === owner) out.push({ exec: e, createdAt: e.createdAt });
+    for (const r of this.store.all()) if (r.owner === owner && !this.active.has(r.id)) out.push({ stored: r, createdAt: r.createdAt });
+    return out.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
   running(): Execution[] {

@@ -70,6 +70,8 @@ export class Execution extends EventEmitter<ExecutionEvents> {
   readonly params: ExecutionParams;
   readonly createdAt: number;
   state: ExecutionState = 'working';
+  /** True once the report, fairness checks and venue records are final and "done" has fired. */
+  settled = false;
   arrivalMid!: Decimal;
   arrivalBook!: { bids: { price: string; size: string }[]; asks: { price: string; size: string }[] };
   guard!: Decimal;
@@ -347,6 +349,7 @@ export class Execution extends EventEmitter<ExecutionEvents> {
       }
     }
     this.d.venue.close();
+    this.settled = true;
     this.emit('done', this);
   }
 

@@ -7,6 +7,7 @@ import { Accounts } from './users/Accounts.js';
 import { StrikeExchange } from './strike/StrikeExchange.js';
 import { ApiKeys } from './users/ApiKeys.js';
 import { openDocStore, scoped } from './db/DocStore.js';
+import { Idempotency } from './api/idempotency.js';
 
 async function main() {
   const config = loadConfig();
@@ -17,10 +18,12 @@ async function main() {
   await accounts.init();
   const apiKeys = new ApiKeys(db, scoped(config.env, 'api-keys'), Date.now, (err) => logger.error({ err: err.message }, 'failed to save API key'));
   await apiKeys.init();
+  const idempotency = new Idempotency(db, scoped(config.env, 'idempotency'), Date.now, (err) => logger.error({ err: err.message }, 'failed to save idempotency key'));
+  await idempotency.init();
   const exchange = new StrikeExchange(config, accounts, logger);
   const manager = new ExecutionManager(config, exchange, store, logger.child({ mod: 'exec' }));
   await exchange.start();
-  const app = await buildApp(config, { exchange, manager, store, accounts, apiKeys });
+  const app = await buildApp(config, { exchange, manager, store, accounts, apiKeys, idempotency });
 
   if (!config.liveConfigured) app.log.warn(config.liveNotConfiguredReason);
 

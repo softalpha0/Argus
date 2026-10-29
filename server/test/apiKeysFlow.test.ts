@@ -1,15 +1,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { EventEmitter } from 'node:events';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import pino from 'pino';
 import { Decimal } from 'decimal.js';
-import { OrderBook } from '../src/book/OrderBook.js';
-import { MarketModel } from '../src/model/MarketModel.js';
-import { parseSymbolRules } from '../src/strike/exchangeInfo.js';
-import type { Exchange, MarketData, MarketEvents } from '../src/exchange/Exchange.js';
 import { ExecutionManager } from '../src/engine/ExecutionManager.js';
+import { fakeExchange as base } from './helpers.js';
 import { FileDocStore } from '../src/db/DocStore.js';
 import { Store } from '../src/store/Store.js';
 import { ApiKeys, type ApiKeyRecord } from '../src/users/ApiKeys.js';
@@ -17,38 +13,9 @@ import { loadConfig } from '../src/config.js';
 import { buildApp } from '../src/app.js';
 import type { ExecutionParams } from '../src/engine/Execution.js';
 
-const rules = parseSymbolRules(
-  {
-    symbols: [{ symbol: 'BTC-USD', status: 'trading', filters: [
-      { filterType: 'PRICE_FILTER', maxPrice: '1000000', minPrice: '10', tickSize: '1' },
-      { filterType: 'LOT_SIZE', maxQty: '1000', minQty: '0.00001', stepSize: '0.00001' },
-      { filterType: 'MIN_NOTIONAL', notional: '10' },
-    ] }],
-  },
-  'BTC-USD',
-);
-
 const NOW = Date.UTC(2026, 9, 29, 12);
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'argus-flow-'));
-
-/** An exchange with a real book (mid 100,000.5) and a live venue that only records that it was reached. */
-function fakeExchange(): Exchange & { createLiveVenue: ReturnType<typeof vi.fn> } {
-  const book = new OrderBook();
-  book.loadSnapshot({
-    type: 'l3_snapshot', symbol: 'BTC-USD', last_sequence: 0, timestamp: NOW,
-    bids: [{ price: '100000', orders: [{ order_id: 'b1', size: '0.5' }] }],
-    asks: [{ price: '100001', orders: [{ order_id: 'a1', size: '0.5' }] }],
-  });
-  const model = new MarketModel(book);
-  model.markStart(NOW);
-  const market = Object.assign(new EventEmitter<MarketEvents>(), {
-    symbol: 'BTC-USD', book, model, isLive: true, rules, recentTrades: () => [], health: () => ({ sync: { state: 'live' } }),
-  }) as MarketData;
-  return {
-    id: 'fake', name: 'Fake', market, start: async () => {}, stop: () => {},
-    createLiveVenue: vi.fn(async () => { throw new Error('live venue reached'); }),
-  };
-}
+const fakeExchange = () => base({ now: NOW });
 
 const config = () => loadConfig({ STRIKE_ENV: 'testnet', BUILDER_CODE: 'Argus', ARGUS_MASTER_KEY: 'ab'.repeat(32), DATA_DIR: tmp() });
 const params = (size: string, mode: 'live' | 'paper' = 'live'): ExecutionParams => ({

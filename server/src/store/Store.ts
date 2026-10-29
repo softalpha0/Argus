@@ -11,6 +11,8 @@ export interface StoredExecution {
   endedAt: number | null;
   /** Set when the execution was started with an API key. */
   apiKeyId?: string;
+  /** The caller's own reference, if given. */
+  clientRef?: string;
   [k: string]: unknown;
 }
 

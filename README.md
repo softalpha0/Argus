@@ -134,9 +134,9 @@ The free plan sleeps after 15 minutes without visitors (the first visit after th
 | `WS /live` | Live market, execution, fill and report updates |
 | `GET /api/keys`, `POST /api/keys`, `DELETE /api/keys/:id` | List, create and revoke API keys (signed-in session only) |
 
-### Using Argus from a program or an AI agent
+### Using Argus from a program or an AI agent (v1 API)
 
-Sign in on the site, then create an API key. The full key is shown once; Argus stores only its hash.
+The `/v1` API is the stable interface for programs and agents. Sign in on the site, then create an API key; the full key is shown once and Argus stores only its hash.
 
 ```bash
 # While signed in (browser session cookie):
@@ -145,18 +145,25 @@ curl -X POST https://<your-argus>/api/keys -H 'content-type: application/json' \
 # -> {"key":"argus_3f9c1a2b7d4e_...","apiKey":{...}}
 ```
 
-Send the key as a bearer token on the execution endpoints:
+Then try [`examples/quickstart.mjs`](examples/quickstart.mjs), which starts an execution, follows it live and prints the receipt (Node 18+, no dependencies):
 
 ```bash
-curl -X POST https://<your-argus>/api/executions -H "authorization: Bearer $ARGUS_KEY" \
-  -H 'content-type: application/json' \
-  -d '{"mode":"live","side":"buy","size":"0.002","deadlineSec":300,"maxSlippageBps":10,"fallback":"market"}'
-curl https://<your-argus>/api/reports/<id> -H "authorization: Bearer $ARGUS_KEY"
+ARGUS_URL=https://<your-argus> ARGUS_KEY=argus_... node examples/quickstart.mjs --side buy --size 0.002 --deadline 120
 ```
 
-- A key acts for the wallet that created it and can only start, follow and stop executions. It can't deposit, withdraw, or create or change keys.
-- Each key has a per-order limit (`maxOrderUsd`, default $500) and a daily limit (`dailyUsd`, default $2,000) on live orders, measured at the mid price when the order starts. Orders over a limit get `403` before anything is sent to Strike.
-- Revoking a key stops every running execution it started. A wrong or revoked key gets `401`; it is never treated as an anonymous request.
+| Endpoint | Does |
+|---|---|
+| `POST /v1/executions` | Starts an execution. Body: `mode` (`paper`/`live`), `side`, `size`, `deadlineSec`, `maxSlippageBps`, `preset`, `fallback`, optional `clientRef` (your own reference) |
+| `GET /v1/executions` | Your executions, newest first (`?limit=` up to 100) |
+| `GET /v1/executions/:id` | State, filled size, working order and its place in line, time left |
+| `POST /v1/executions/:id/cancel` | Stops it; safe to repeat |
+| `GET /v1/executions/:id/events` | Server-Sent Events: `execution` snapshots while it runs, `fill` per fill, then the final `execution` and the `receipt`, then the stream closes |
+| `GET /v1/executions/:id/receipt` | Receipt once finished (`409 not_ready` before) |
+
+- **Retries:** send an `Idempotency-Key` header on `POST /v1/executions`. A retry with the same key and body returns the execution already started (`200`, `Idempotent-Replayed: true`) instead of placing a second order. The same key with a different body gets `409 idempotency_key_reused`. Keys are kept for 24 hours; failed requests are not kept, so they can be retried.
+- **Errors** are `{"error":{"type":"...","message":"..."}}` with `type` one of `invalid_request`, `unauthorized`, `forbidden`, `limit_exceeded`, `not_found`, `conflict`, `idempotency_key_reused`, `not_ready`, `unavailable`, `server_error`.
+- **Receipt** (`schema: "argus.receipt.v1"`): requested parameters, `outcome` (`filled`, `partially_filled`, `not_filled`), timing, arrival mid and limit, result (filled size, average price, maker share), costs (price versus arrival, venue fees, builder fee, total), the benchmark (a market order for the filled size at arrival, with the taker fee) and the saving in USD and bps, every fill with its liquidity, fees and fairness checks, and the venue's own order records for live runs. Amounts are decimal strings in USD.
+- **Keys and limits:** a key acts for the wallet that created it and can only start, follow and stop executions; it can't deposit, withdraw, or create or change keys. Each key has a per-order limit (`maxOrderUsd`, default $500) and a daily limit (`dailyUsd`, default $2,000) on live orders, measured at the mid when the order starts. Revoking a key stops every running execution it started. A wrong or revoked key gets `401`.
 
 ---
 
