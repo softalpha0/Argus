@@ -1,47 +1,26 @@
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
-import { MarketFeeds } from './strike/feeds.js';
 import pino from 'pino';
 import { Store } from './store/Store.js';
 import { ExecutionManager } from './engine/ExecutionManager.js';
 import { Accounts } from './users/Accounts.js';
-import { LiveVenue } from './engine/LiveVenue.js';
-import { syncClock } from './strike/rest.js';
-import { fetchBaseFees } from './strike/feeTiers.js';
+import { StrikeExchange } from './strike/StrikeExchange.js';
+import { ApiKeys } from './users/ApiKeys.js';
+import { openDocStore, scoped } from './db/DocStore.js';
 
 async function main() {
   const config = loadConfig();
   const logger = pino({ level: config.production ? 'info' : 'debug' });
-  if (!config.feesPinned) {
-    try {
-      Object.assign(config, await fetchBaseFees(config.hosts.rest));
-    } catch (err) {
-      logger.warn({ err: (err as Error).message }, 'could not read Strike fee tiers; using built-in base fees');
-    }
-  }
-  logger.info({ takerFee: config.takerFee, makerFee: config.makerFee }, 'fees for paper fills and estimates');
-  const feeds = new MarketFeeds(config, logger);
-  const store = new Store(config.dataDir);
-  const manager = new ExecutionManager(config, feeds, store, logger.child({ mod: 'exec' }));
-  const accounts = new Accounts(config, logger.child({ mod: 'accounts' }));
-  manager.liveFactory = {
-    async create(owner, executionId) {
-      const rest = accounts.restFor(owner);
-      const stream = accounts.streamFor(owner);
-      // The stream must be up before the first order, or we'd miss its confirmation.
-      await stream.waitReady(10_000);
-      return new LiveVenue({
-        symbol: config.symbol,
-        rest,
-        stream,
-        l3: feeds.l3,
-        tape: feeds.tape,
-        argusFeeBps: config.argusFeeBps,
-        logger: logger.child({ mod: 'live', exec: executionId }),
-      });
-    },
-  };
-  const app = await buildApp(config, { feeds, manager, store, accounts });
+  const db = await openDocStore(config, logger);
+  const store = await Store.open(db, (err, id) => logger.error({ err: err.message, exec: id }, 'failed to save execution'));
+  const accounts = new Accounts(config, logger.child({ mod: 'accounts' }), db);
+  await accounts.init();
+  const apiKeys = new ApiKeys(db, scoped(config.env, 'api-keys'), Date.now, (err) => logger.error({ err: err.message }, 'failed to save API key'));
+  await apiKeys.init();
+  const exchange = new StrikeExchange(config, accounts, logger);
+  const manager = new ExecutionManager(config, exchange, store, logger.child({ mod: 'exec' }));
+  await exchange.start();
+  const app = await buildApp(config, { exchange, manager, store, accounts, apiKeys });
 
   if (!config.liveConfigured) app.log.warn(config.liveNotConfiguredReason);
 
@@ -50,20 +29,14 @@ async function main() {
   process.on('uncaughtException', (err) => app.log.error({ err }, 'uncaught exception'));
 
   await app.listen({ port: config.port, host: '0.0.0.0' });
-  void feeds.start();
-  const resync = () =>
-    syncClock(config.hosts.rest)
-      .then((skew) => Math.abs(skew) > 2000 && logger.warn({ skewMs: Math.round(skew) }, 'local clock differs from Strike; correcting signatures'))
-      .catch((err) => logger.warn({ err: (err as Error).message }, 'could not read Strike server time'));
-  void resync();
-  setInterval(() => void resync(), 10 * 60_000).unref();
   shutdownHook = async () => {
     await manager.shutdown();
-    feeds.stop();
+    exchange.stop();
     accounts.stop();
     await app.close();
+    await db.close();
   };
-  app.log.info(`Argus on ${config.env} (${config.symbol}) at http://localhost:${config.port}`);
+  app.log.info(`Argus on ${config.env} (${config.symbol}) via ${exchange.name} at http://localhost:${config.port}`);
 }
 
 let shutdownHook: (() => Promise<void>) | null = null;

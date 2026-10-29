@@ -92,12 +92,13 @@ Paper mode works with no extra setup. Live mode needs `BUILDER_CODE` and `ARGUS_
 | `STRIKE_ENV` | `mainnet` | `mainnet` or `testnet` |
 | `SYMBOL` | `BTC-USD` | Market |
 | `PORT` | `8080` | Server port |
-| `DATA_DIR` | `./data` | Executions, reports, encrypted keys |
+| `DATA_DIR` | `./data` | Executions, reports, encrypted keys (when `DATABASE_URL` is unset) |
+| `DATABASE_URL` | none | Postgres connection string. When set, all data is kept in Postgres instead of files |
 | `BUILDER_CODE` | none | Your builder code, exactly as Strike stores it (mainnet `argus`, testnet `Argus` for this project) |
 | `BUILDER_MAX_FEE_BPS` | `10` | Max fee users approve when connecting |
 | `ARGUS_FEE_BPS` | `2` | Fee charged per order |
 | `ARGUS_MASTER_KEY` | none | 32-byte hex key that encrypts stored API wallet keys |
-| `TAKER_FEE` / `MAKER_FEE` | `0.0005` / `-0.00005` | Fee assumptions for paper mode and the baseline |
+| `TAKER_FEE` / `MAKER_FEE` | read from Strike | Pin the fees for paper mode and the baseline; unset reads Strike's base tier at startup |
 
 ### Testing live mode for free on testnet
 
@@ -112,7 +113,7 @@ Strike's testnet takes Cardano Preprod test ADA. Get some from the [Cardano fauc
 3. Set `BUILDER_CODE` and `ARGUS_MASTER_KEY` when prompted. Generate the key with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 4. Deploy. The app is served at the Render URL; `/healthz` returns `{"ok":true}`.
 
-The free plan sleeps after 15 minutes without visitors (the first visit after that takes about 30 seconds) and has no disk, so run history and connected wallets reset on each restart. Open the site before a demo to wake it. For an always-on deployment, set `plan: starter`, add a disk mounted at `/var/data` and set `DATA_DIR=/var/data`.
+The free plan sleeps after 15 minutes without visitors (the first visit after that takes about 30 seconds) and has no disk, so run history, connected wallets and API keys reset on each restart unless you set `DATABASE_URL`. Open the site before a demo to wake it. To keep data, create a Render Postgres database and set `DATABASE_URL` on the service to its internal connection string; for an always-on server, also set `plan: starter`.
 
 ---
 
@@ -131,6 +132,31 @@ The free plan sleeps after 15 minutes without visitors (the first visit after th
 | `POST /api/funds/deposit/quote`, `/build`, `/confirm` | Deposits through Strike's Builder API |
 | `POST /api/funds/withdraw/quote`, `/confirm` | Withdrawals to the connected wallet |
 | `WS /live` | Live market, execution, fill and report updates |
+| `GET /api/keys`, `POST /api/keys`, `DELETE /api/keys/:id` | List, create and revoke API keys (signed-in session only) |
+
+### Using Argus from a program or an AI agent
+
+Sign in on the site, then create an API key. The full key is shown once; Argus stores only its hash.
+
+```bash
+# While signed in (browser session cookie):
+curl -X POST https://<your-argus>/api/keys -H 'content-type: application/json' \
+  -b 'argus_session=...' -d '{"name":"my bot","maxOrderUsd":500,"dailyUsd":2000}'
+# -> {"key":"argus_3f9c1a2b7d4e_...","apiKey":{...}}
+```
+
+Send the key as a bearer token on the execution endpoints:
+
+```bash
+curl -X POST https://<your-argus>/api/executions -H "authorization: Bearer $ARGUS_KEY" \
+  -H 'content-type: application/json' \
+  -d '{"mode":"live","side":"buy","size":"0.002","deadlineSec":300,"maxSlippageBps":10,"fallback":"market"}'
+curl https://<your-argus>/api/reports/<id> -H "authorization: Bearer $ARGUS_KEY"
+```
+
+- A key acts for the wallet that created it and can only start, follow and stop executions. It can't deposit, withdraw, or create or change keys.
+- Each key has a per-order limit (`maxOrderUsd`, default $500) and a daily limit (`dailyUsd`, default $2,000) on live orders, measured at the mid price when the order starts. Orders over a limit get `403` before anything is sent to Strike.
+- Revoking a key stops every running execution it started. A wrong or revoked key gets `401`; it is never treated as an anonymous request.
 
 ---
 
@@ -139,6 +165,7 @@ The free plan sleeps after 15 minutes without visitors (the first visit after th
 - Argus's key for your account can trade but can't withdraw. Withdrawals always need your own wallet's signature and Strike sends them only to the wallet you connected.
 - Stored keys are encrypted with AES-256-GCM, with the wallet address bound in.
 - Sessions are httpOnly, SameSite=Lax cookies; only token hashes are stored. Mainnet and testnet sign-ins are separate.
+- API keys are stored as SHA-256 hashes and checked in constant time. Keys are limited per order and per day, and can be revoked at any time.
 - Every order is post-only unless the deadline fallback runs. At most 2 order actions per second per user.
 - You can stop any execution at any time, and revoke Argus's key in Strike's app.
 

@@ -23,5 +23,8 @@ services:
         value: "10"
       - key: BUILDER_CODE
         sync: false          # set in the Render dashboard: Argus on testnet, argus on mainnet
+      # Optional: a Render Postgres internal URL, so wallets, API keys and history survive restarts
+      - key: DATABASE_URL
+        sync: false
       - key: ARGUS_MASTER_KEY
         sync: false          # 64 hex chars; generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

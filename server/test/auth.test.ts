@@ -6,6 +6,7 @@ import * as ed from '@noble/ed25519';
 import { hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { generateApiWallet, normalizeSecretKey, sha256Hex, signHex, signingMessage, StrikeRest } from '../src/strike/rest.js';
 import { KeyStore } from '../src/users/KeyStore.js';
+import { FileDocStore } from '../src/db/DocStore.js';
 import { Sessions } from '../src/users/Sessions.js';
 import { logonMessage, splitFrames } from '../src/strike/userStream.js';
 
@@ -60,28 +61,35 @@ describe('KeyStore', () => {
     const dir = tmp();
     const master = 'ab'.repeat(32);
     const k = await generateApiWallet();
-    const store = new KeyStore(dir, master);
-    store.save({ address: 'Wallet1', accountId: 'acc', apiWalletId: '7', publicKey: k.publicKey, feeShareBps: 10, createdAt: 1 }, k.secretKey);
+    // A fresh FileDocStore each time reads what is on disk, as a restarted server would.
+    const open = (key = master) => KeyStore.open(new FileDocStore(dir), 'keys', key);
+    const store = await open();
+    await store.save({ address: 'Wallet1', accountId: 'acc', apiWalletId: '7', publicKey: k.publicKey, feeShareBps: 10, createdAt: 1 }, k.secretKey);
     const raw = fs.readFileSync(path.join(dir, 'keys.json'), 'utf8');
     expect(raw).not.toContain(Buffer.from(k.secretKey).toString('hex'));
-    expect(new KeyStore(dir, master).unlock('Wallet1')!.secretKey).toEqual(k.secretKey);
-    expect(() => new KeyStore(dir, 'cd'.repeat(32)).unlock('Wallet1')).toThrow();
+    expect((await open()).unlock('Wallet1')!.secretKey).toEqual(k.secretKey);
+    const wrongMaster = await open('cd'.repeat(32));
+    expect(() => wrongMaster.unlock('Wallet1')).toThrow();
     // Moving the record to another address breaks authentication.
     const j = JSON.parse(raw);
     j.Wallet2 = { ...j.Wallet1, address: 'Wallet2' };
     fs.writeFileSync(path.join(dir, 'keys.json'), JSON.stringify(j));
-    expect(() => new KeyStore(dir, master).unlock('Wallet2')).toThrow();
+    const moved = await open();
+    expect(() => moved.unlock('Wallet2')).toThrow();
   });
 });
 
 describe('Sessions', () => {
-  it('stores only token hashes and expires sessions', () => {
+  it('stores only token hashes and expires sessions', async () => {
     const dir = tmp();
     let now = 1000;
-    const s = new Sessions(dir, () => now);
+    const s = new Sessions(new FileDocStore(dir), 'sessions', () => now);
+    await s.init();
     const { token } = s.create('W', 'acc');
     expect(fs.readFileSync(path.join(dir, 'sessions.json'), 'utf8')).not.toContain(token);
-    expect(new Sessions(dir, () => now).get(token)?.address).toBe('W');
+    const reopened = new Sessions(new FileDocStore(dir), 'sessions', () => now);
+    await reopened.init();
+    expect(reopened.get(token)?.address).toBe('W');
     now += 8 * 24 * 3600_000;
     expect(s.get(token)).toBeUndefined();
     expect(s.get(undefined)).toBeUndefined();

@@ -34,6 +34,8 @@ export interface Config {
   symbol: string;
   port: number;
   dataDir: string;
+  /** Postgres connection string; when unset, data is kept in files under dataDir. */
+  databaseUrl: string | null;
   builderCode: string | null;
   builderMaxFeeBps: number;
   argusFeeBps: number;
@@ -92,6 +94,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     symbol: (env.SYMBOL ?? 'BTC-USD').trim(),
     port: intVar(env, 'PORT', 8080),
     dataDir: path.resolve(env.DATA_DIR?.trim() || './data'),
+    databaseUrl: env.DATABASE_URL?.trim() || null,
     builderCode,
     builderMaxFeeBps,
     argusFeeBps,

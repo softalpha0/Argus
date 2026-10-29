@@ -6,7 +6,8 @@
 import pino from 'pino';
 import { Decimal } from 'decimal.js';
 import { loadConfig } from '../src/config.js';
-import { MarketFeeds } from '../src/strike/feeds.js';
+import { StrikeExchange } from '../src/strike/StrikeExchange.js';
+import { FileDocStore } from '../src/db/DocStore.js';
 import { Store } from '../src/store/Store.js';
 import { ExecutionManager } from '../src/engine/ExecutionManager.js';
 import type { Execution, ExecutionParams } from '../src/engine/Execution.js';
@@ -14,9 +15,9 @@ import { computeStats } from '../src/store/stats.js';
 
 const config = loadConfig();
 const logger = pino({ level: process.env.LOG_LEVEL ?? 'warn' });
-const feeds = new MarketFeeds(config, logger);
-const store = new Store(config.dataDir);
-const manager = new ExecutionManager(config, feeds, store, logger);
+const exchange = new StrikeExchange(config, null, logger);
+const store = await Store.open(new FileDocStore(config.dataDir));
+const manager = new ExecutionManager(config, exchange, store, logger);
 
 const runs: Omit<ExecutionParams, 'mode'>[] = [
   { side: 'buy', size: new Decimal('0.0002'), deadlineSec: 120, maxSlippageBps: 10, preset: 'balanced', fallback: 'market' },
@@ -31,8 +32,8 @@ const runs: Omit<ExecutionParams, 'mode'>[] = [
   { side: 'sell', size: new Decimal('0.00015'), deadlineSec: 240, maxSlippageBps: 10, preset: 'fast', fallback: 'market' },
 ];
 
-await feeds.start();
-while (!feeds.l3.isLive) await new Promise((r) => setTimeout(r, 200));
+await exchange.start();
+while (!exchange.market.isLive) await new Promise((r) => setTimeout(r, 200));
 // Let the fill-rate model see a little flow first.
 await new Promise((r) => setTimeout(r, 30_000));
 
@@ -65,5 +66,5 @@ for (const e of execs) {
   );
 }
 console.log('\nSTATS ' + JSON.stringify(computeStats(store.all().filter((s) => execs.some((e) => e.id === s.id))).total));
-feeds.stop();
+exchange.stop();
 process.exit(0);

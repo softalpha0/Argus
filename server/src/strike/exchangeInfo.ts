@@ -1,17 +1,8 @@
 import { Decimal } from 'decimal.js';
+import type { MarketRules } from '../exchange/Exchange.js';
 
-export interface SymbolRules {
-  symbol: string;
-  status: string;
-  tickSize: Decimal;
-  minPrice: Decimal;
-  maxPrice: Decimal;
-  stepSize: Decimal;
-  minQty: Decimal;
-  maxQty: Decimal;
-  marketMaxQty: Decimal;
-  minNotional: Decimal;
-}
+/** Strike's filters for one symbol, in the generic shape every exchange adapter uses. */
+export type SymbolRules = MarketRules;
 
 interface RawFilter {
   filterType: string;

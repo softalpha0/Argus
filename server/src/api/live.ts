@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { WebSocket } from 'ws';
-import type { MarketFeeds } from '../strike/feeds.js';
+import type { MarketData } from '../exchange/Exchange.js';
 import type { ExecutionManager } from '../engine/ExecutionManager.js';
 import type { Execution } from '../engine/Execution.js';
 import { canSee } from './routes.js';
@@ -11,18 +11,18 @@ interface Client {
 }
 
 /** Market snapshot shared by /api/market and the live socket. */
-export function marketView(feeds: MarketFeeds, symbol: string, depth = 20) {
-  const book = feeds.l3.book;
-  const live = feeds.l3.isLive;
+export function marketView(market: MarketData, symbol: string, depth = 20) {
+  const book = market.book;
+  const live = market.isLive;
   const now = Date.now();
-  const rules = feeds.rules;
+  const rules = market.rules;
   return {
     symbol,
     live,
     sequence: book.lastSequence,
     mid: live ? (book.mid()?.toString() ?? null) : null,
     spread: live ? (book.spread()?.toString() ?? null) : null,
-    fillRate: { buy: feeds.model.fillRate('buy', now), sell: feeds.model.fillRate('sell', now) },
+    fillRate: { buy: market.model.fillRate('buy', now), sell: market.model.fillRate('sell', now) },
     rules: rules && {
       tickSize: rules.tickSize.toString(),
       stepSize: rules.stepSize.toString(),
@@ -30,14 +30,14 @@ export function marketView(feeds: MarketFeeds, symbol: string, depth = 20) {
       minNotional: rules.minNotional.toString(),
     },
     book: live ? book.toJSON(depth) : null,
-    recentTrades: feeds.tape.trades.slice(-20).map((t) => ({ id: t.id, price: t.price.toString(), size: t.size.toString(), time: t.time, buyerMaker: t.buyerMaker })),
+    recentTrades: market.recentTrades(20).map((t) => ({ id: t.id, price: t.price.toString(), size: t.size.toString(), time: t.time, buyerMaker: t.buyerMaker })),
   };
 }
 
 /** WS /live: market (≤ 4/s), execution (on change, ≤ 4/s each), fill, report. */
 export function registerLive(
   app: FastifyInstance,
-  feeds: MarketFeeds,
+  market: MarketData,
   manager: ExecutionManager,
   symbol: string,
   ownerOf: (req: FastifyRequest) => string | null,
@@ -57,8 +57,8 @@ export function registerLive(
   };
 
   let marketDirty = true;
-  feeds.l3.on('update', () => (marketDirty = true));
-  feeds.l3.on('state', () => (marketDirty = true));
+  market.on('update', () => (marketDirty = true));
+  market.on('state', () => (marketDirty = true));
   const dirtyExecs = new Map<string, Execution>();
   manager.on('change', (e) => dirtyExecs.set(e.id, e));
   manager.on('fill', (e, f) => broadcastExec(e, { type: 'fill', executionId: e.id, fill: f }));
@@ -72,7 +72,7 @@ export function registerLive(
     if (clients.size === 0) return;
     if (marketDirty) {
       marketDirty = false;
-      const text = JSON.stringify({ type: 'market', market: marketView(feeds, symbol) });
+      const text = JSON.stringify({ type: 'market', market: marketView(market, symbol) });
       for (const c of clients) {
         if (c.ws.readyState !== 1) continue;
         try {
@@ -95,9 +95,17 @@ export function registerLive(
   });
 
   app.get('/live', { websocket: true }, (socket, req) => {
-    const c: Client = { ws: socket, owner: ownerOf(req) };
+    let owner: string | null;
+    try {
+      owner = ownerOf(req);
+    } catch (err) {
+      // A bad API key on the socket gets a clear close reason instead of an anonymous feed.
+      socket.close(4401, (err as Error).message.slice(0, 120));
+      return;
+    }
+    const c: Client = { ws: socket, owner };
     clients.add(c);
-    send(c, { type: 'market', market: marketView(feeds, symbol) });
+    send(c, { type: 'market', market: marketView(market, symbol) });
     socket.on('close', () => clients.delete(c));
     socket.on('error', () => clients.delete(c));
   });

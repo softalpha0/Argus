@@ -1,12 +1,7 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { Config } from '../config.js';
 import { Accounts, ConnectError } from '../users/Accounts.js';
 import { sessionCookie, sessionTtlSec } from '../users/Sessions.js';
-
-export function sessionOwner(accounts: Accounts, env: 'mainnet' | 'testnet') {
-  const name = sessionCookie(env);
-  return (req: FastifyRequest): string | null => accounts.sessions.get(req.cookies?.[name])?.address ?? null;
-}
 
 export function registerConnect(app: FastifyInstance, config: Config, accounts: Accounts): void {
   const SESSION_COOKIE = sessionCookie(config.env);

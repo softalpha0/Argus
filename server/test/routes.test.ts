@@ -40,7 +40,6 @@ describe('GET /api/reports/:id', async () => {
     const app = Fastify();
     registerRoutes(app, {
       config: loadConfig({}),
-      feeds: {} as never,
       manager: { get: () => ({ stored }) } as never,
       store: { all: () => [] } as never,
       ownerOf: () => 'W1',
@@ -50,7 +49,7 @@ describe('GET /api/reports/:id', async () => {
     expect(res.json().audit.orders[0]).toMatchObject({ id: 42, builder: { Code: 'Argus', FeeBps: 2 } });
     const hidden = await (async () => {
       const a2 = Fastify();
-      registerRoutes(a2, { config: loadConfig({}), feeds: {} as never, manager: { get: () => ({ stored }) } as never, store: { all: () => [] } as never, ownerOf: () => 'someone-else' });
+      registerRoutes(a2, { config: loadConfig({}), manager: { get: () => ({ stored }) } as never, store: { all: () => [] } as never, ownerOf: () => 'someone-else' });
       return a2.inject({ method: 'GET', url: '/api/reports/r1' });
     })();
     expect(hidden.statusCode).toBe(404);

@@ -1,6 +1,6 @@
-import path from 'node:path';
 import type { Logger } from 'pino';
 import type { Config } from '../config.js';
+import { FileDocStore, scoped, type DocStore } from '../db/DocStore.js';
 import { generateApiWallet, StrikeRest, StrikeError, type ApiWalletKey, type WalletChain } from '../strike/rest.js';
 import { UserStream } from '../strike/userStream.js';
 import { KeyStore } from './KeyStore.js';
@@ -56,12 +56,18 @@ export class Accounts {
   private pending = new Map<string, Pending>();
   private streams = new Map<string, UserStream>();
 
-  constructor(private readonly config: Config, private readonly logger: Logger) {
+  constructor(private readonly config: Config, private readonly logger: Logger, db: DocStore = new FileDocStore(config.dataDir)) {
     // Each network has its own Strike accounts and API wallets; keep them apart.
-    const dir = config.env === 'mainnet' ? config.dataDir : path.join(config.dataDir, config.env);
-    this.sessions = new Sessions(dir);
-    this.keys = config.masterKey ? new KeyStore(dir, config.masterKey) : null;
+    const onWriteError = (err: Error) => logger.error({ err: err.message }, 'failed to save session');
+    this.sessions = new Sessions(db, scoped(config.env, 'sessions'), Date.now, onWriteError);
+    this.keys = config.masterKey ? new KeyStore(db, scoped(config.env, 'keys'), config.masterKey) : null;
     this.rest = new StrikeRest({ baseUrl: config.hosts.rest });
+  }
+
+  /** Loads stored sessions and wallet keys. */
+  async init(): Promise<void> {
+    await this.sessions.init();
+    await this.keys?.init();
   }
 
   private requireLive(): KeyStore {
@@ -117,7 +123,7 @@ export class Accounts {
     // Replacing an earlier key: stop its stream first.
     this.streams.get(address)?.stop();
     this.streams.delete(address);
-    keys.save(
+    await keys.save(
       {
         address,
         chain: p.chain,

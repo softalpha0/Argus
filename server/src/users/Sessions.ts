@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
+import type { DocStore } from '../db/DocStore.js';
 
 export interface Session {
   address: string;
@@ -14,21 +13,24 @@ export const SESSION_COOKIE = 'argus_session';
 /** Mainnet and testnet sign-ins are separate accounts, so they get separate cookies. */
 export const sessionCookie = (env: 'mainnet' | 'testnet') => (env === 'mainnet' ? SESSION_COOKIE : `${SESSION_COOKIE}_${env}`);
 
-/** Random session tokens; only their SHA-256 is kept, so the file alone can't sign anyone in. */
+/** Random session tokens; only their SHA-256 is kept, so stored data alone can't sign anyone in. */
 export class Sessions {
-  private readonly file: string;
   private byHash = new Map<string, Session>();
 
-  constructor(dataDir: string, private readonly now: () => number = Date.now) {
-    fs.mkdirSync(dataDir, { recursive: true });
-    this.file = path.join(dataDir, 'sessions.json');
-    if (fs.existsSync(this.file)) {
-      try {
-        const raw = JSON.parse(fs.readFileSync(this.file, 'utf8')) as Record<string, Session>;
-        for (const [h, s] of Object.entries(raw)) if (s.expiresAt > this.now()) this.byHash.set(h, s);
-      } catch {
-        /* start fresh on a corrupt file */
-      }
+  /** `collection` is e.g. "sessions" or "testnet/sessions"; call init() before use. */
+  constructor(
+    private readonly db: DocStore,
+    private readonly collection: string,
+    private readonly now: () => number = Date.now,
+    private readonly onWriteError: (err: Error) => void = () => {},
+  ) {}
+
+  async init(): Promise<void> {
+    const all = await this.db.loadAll<Session>(this.collection);
+    this.byHash = new Map();
+    for (const [h, s] of all) {
+      if (s.expiresAt > this.now()) this.byHash.set(h, s);
+      else void this.db.remove(this.collection, h).catch(this.onWriteError);
     }
   }
 
@@ -40,8 +42,9 @@ export class Sessions {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = this.now();
     const session = { address, accountId, createdAt: now, expiresAt: now + TTL_MS };
-    this.byHash.set(Sessions.hash(token), session);
-    this.flush();
+    const h = Sessions.hash(token);
+    this.byHash.set(h, session);
+    void this.db.put(this.collection, h, session).catch(this.onWriteError);
     return { token, session };
   }
 
@@ -57,13 +60,9 @@ export class Sessions {
   }
 
   destroy(token: string | undefined): void {
-    if (token && this.byHash.delete(Sessions.hash(token))) this.flush();
-  }
-
-  private flush(): void {
-    const tmp = this.file + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(this.byHash)), { mode: 0o600 });
-    fs.renameSync(tmp, this.file);
+    if (!token) return;
+    const h = Sessions.hash(token);
+    if (this.byHash.delete(h)) void this.db.remove(this.collection, h).catch(this.onWriteError);
   }
 }
 

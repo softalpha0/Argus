@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
+import type { DocStore } from '../db/DocStore.js';
 import type { ApiWalletKey } from '../strike/rest.js';
 
 export interface StoredUser {
@@ -25,28 +24,33 @@ export interface StoredUser {
  * The address is bound in as associated data, so a record can't be moved to another user.
  */
 export class KeyStore {
-  private readonly file: string;
   private readonly key: Buffer;
   private users = new Map<string, StoredUser>();
 
-  constructor(dataDir: string, masterKeyHex: string) {
+  /** `collection` is e.g. "keys" or "testnet/keys"; call init() before use. */
+  constructor(private readonly db: DocStore, private readonly collection: string, masterKeyHex: string) {
     this.key = Buffer.from(masterKeyHex, 'hex');
     if (this.key.length !== 32) throw new Error('ARGUS_MASTER_KEY must be 32 bytes');
-    fs.mkdirSync(dataDir, { recursive: true });
-    this.file = path.join(dataDir, 'keys.json');
-    if (fs.existsSync(this.file)) {
-      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8')) as Record<string, StoredUser>;
-      for (const [k, v] of Object.entries(raw)) this.users.set(k, v);
-    }
   }
 
-  save(u: Omit<StoredUser, 'iv' | 'tag' | 'ciphertext'>, secretKey: Uint8Array): void {
+  static async open(db: DocStore, collection: string, masterKeyHex: string): Promise<KeyStore> {
+    const k = new KeyStore(db, collection, masterKeyHex);
+    await k.init();
+    return k;
+  }
+
+  async init(): Promise<void> {
+    this.users = await this.db.loadAll<StoredUser>(this.collection);
+  }
+
+  save(u: Omit<StoredUser, 'iv' | 'tag' | 'ciphertext'>, secretKey: Uint8Array): Promise<void> {
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', this.key, iv);
     cipher.setAAD(Buffer.from(u.address));
     const ct = Buffer.concat([cipher.update(Buffer.from(secretKey)), cipher.final()]);
-    this.users.set(u.address, { ...u, iv: iv.toString('hex'), tag: cipher.getAuthTag().toString('hex'), ciphertext: ct.toString('hex') });
-    this.flush();
+    const rec = { ...u, iv: iv.toString('hex'), tag: cipher.getAuthTag().toString('hex'), ciphertext: ct.toString('hex') };
+    this.users.set(u.address, rec);
+    return this.db.put(this.collection, u.address, rec);
   }
 
   get(address: string): StoredUser | undefined {
@@ -64,13 +68,7 @@ export class KeyStore {
     return { publicKey: u.publicKey, secretKey: new Uint8Array(seed) };
   }
 
-  remove(address: string): void {
-    if (this.users.delete(address)) this.flush();
-  }
-
-  private flush(): void {
-    const tmp = this.file + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(this.users), null, 2), { mode: 0o600 });
-    fs.renameSync(tmp, this.file);
+  async remove(address: string): Promise<void> {
+    if (this.users.delete(address)) await this.db.remove(this.collection, address);
   }
 }

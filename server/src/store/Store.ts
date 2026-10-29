@@ -1,5 +1,4 @@
-import fs from 'node:fs';
-import path from 'node:path';
+import type { DocStore } from '../db/DocStore.js';
 
 export interface StoredExecution {
   id: string;
@@ -10,37 +9,35 @@ export interface StoredExecution {
   state: string;
   createdAt: number;
   endedAt: number | null;
+  /** Set when the execution was started with an API key. */
+  apiKeyId?: string;
   [k: string]: unknown;
 }
 
-/** Append-only NDJSON store for finished executions, mirrored in memory. */
+const COLLECTION = 'executions';
+
+/** Finished executions, held in memory and written through to the DocStore. */
 export class Store {
-  private readonly file: string;
-  private readonly byId = new Map<string, StoredExecution>();
+  private byId = new Map<string, StoredExecution>();
 
-  constructor(dataDir: string) {
-    fs.mkdirSync(dataDir, { recursive: true });
-    this.file = path.join(dataDir, 'executions.ndjson');
-    this.load();
+  constructor(
+    private readonly db: DocStore,
+    private readonly onWriteError: (err: Error, id: string) => void = () => {},
+  ) {}
+
+  static async open(db: DocStore, onWriteError?: (err: Error, id: string) => void): Promise<Store> {
+    const s = new Store(db, onWriteError);
+    await s.init();
+    return s;
   }
 
-  private load(): void {
-    if (!fs.existsSync(this.file)) return;
-    const lines = fs.readFileSync(this.file, 'utf8').split('\n');
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const rec = JSON.parse(line) as StoredExecution;
-        if (rec?.id) this.byId.set(rec.id, rec);
-      } catch {
-        // A torn last line after a crash is skipped, not fatal.
-      }
-    }
+  async init(): Promise<void> {
+    this.byId = await this.db.loadAll<StoredExecution>(COLLECTION);
   }
 
-  save(rec: StoredExecution): void {
+  save(rec: StoredExecution): Promise<void> {
     this.byId.set(rec.id, rec);
-    fs.appendFileSync(this.file, JSON.stringify(rec) + '\n');
+    return this.db.put(COLLECTION, rec.id, rec).catch((err: Error) => this.onWriteError(err, rec.id));
   }
 
   get(id: string): StoredExecution | undefined {

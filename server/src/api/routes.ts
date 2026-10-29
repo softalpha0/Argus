@@ -1,20 +1,21 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { Decimal } from 'decimal.js';
 import type { Config } from '../config.js';
-import type { MarketFeeds } from '../strike/feeds.js';
 import { ExecutionManager, UserError } from '../engine/ExecutionManager.js';
 import type { ExecutionParams } from '../engine/Execution.js';
 import type { Store } from '../store/Store.js';
 import { computeStats } from '../store/stats.js';
 import { PATIENCE, type Preset } from '../engine/Strategy.js';
+import { AuthError, type Caller } from './auth.js';
 
 export interface RouteDeps {
   config: Config;
-  feeds: MarketFeeds;
   manager: ExecutionManager;
   store: Store;
   /** Resolves the signed-in wallet address for a request, if any. */
   ownerOf: (req: FastifyRequest) => string | null;
+  /** Session or API key caller; when set, API key limits apply to executions it starts. */
+  callerOf?: (req: FastifyRequest) => Caller | null;
 }
 
 export function parseExecutionBody(body: unknown): ExecutionParams {
@@ -48,7 +49,7 @@ export function canSee(exec: { mode: string; owner: string | null }, viewer: str
 
 export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
   app.setErrorHandler((err, _req, reply) => {
-    if (err instanceof UserError) return reply.code(err.status).send({ error: err.message });
+    if (err instanceof UserError || err instanceof AuthError) return reply.code(err.status).send({ error: err.message });
     const status = (err as { statusCode?: number }).statusCode;
     if (status && status < 500) return reply.code(status).send({ error: (err as Error).message });
     app.log.error({ err }, 'request failed');
@@ -57,7 +58,9 @@ export function registerRoutes(app: FastifyInstance, d: RouteDeps): void {
 
   app.post('/api/executions', async (req, reply) => {
     const params = parseExecutionBody(req.body);
-    const exec = await d.manager.create(params, d.ownerOf(req));
+    const caller = d.callerOf ? d.callerOf(req) : null;
+    const owner = d.callerOf ? (caller?.owner ?? null) : d.ownerOf(req);
+    const exec = await d.manager.create(params, owner, { apiKey: caller?.apiKey });
     return reply.code(201).send(exec.toJSON());
   });
 
